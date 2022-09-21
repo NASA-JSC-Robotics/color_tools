@@ -55,11 +55,24 @@ void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr & colorImMsgA)
       //printf("Box[%ld] - %f, ", i, float(box.width)/ box.height);
       drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
       //printf("Contour %ld - %f/%f -> %f ---------", i, rotRect.size.width, rotRect.size.height , rotRect.size.width/rotRect.size.height);
+      cv::Moments moment = moments(contours[i]);
+      // calculate x,y coordinate of center
+      cv::Point2f momentPt;
+      if (moment.m00 != 0)
+      {
+        momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
+        circle(colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
+        putText(colorImage, "  :D", cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+      }
+
     }
   }
   //printf("\n");
 
   cv::imshow("res", res);
+  cv::waitKey(10);
+
+  cv::imshow("final", colorImage);
   cv::waitKey(10);
 
 }
@@ -68,7 +81,10 @@ int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   rclcpp::NodeOptions options;
-  rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("image_listener", options);
+  rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("velcro_centroid", options);
+
+  //rclcpp::Service<example_interfaces::srv::AddTwoInts>::SharedPtr service = node->create_service<example_interfaces::srv::AddTwoInts>("get_velcro_centroid", &add);
+
   cv::namedWindow("view");
   cv::startWindowThread();
   image_transport::ImageTransport it(node);
