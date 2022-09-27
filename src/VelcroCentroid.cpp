@@ -6,91 +6,134 @@
 #include "sensor_msgs/msg/image.hpp"
 
 #include <color_names/ColorNames.h>
+#include "perception_msgs/srv/velcro_dimensions.hpp"
+#include "std_msgs/msg/string.hpp"
+using std::placeholders::_1;
+using std::placeholders::_2;
+using namespace std::chrono_literals;
 
-void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr & colorImMsgA)
+class VelcroCentroid : public rclcpp::Node
 {
-  static cv::Mat mask;
-  cv::Mat colorImage = cv::Mat(cv_bridge::toCvShare(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
 
-  ColorNames colorNames;
-  colorNames.createColorMask(colorImage, "black", mask);
+  public:
+    VelcroCentroid()
+    : Node("velcro_centroid")
+    , m_imageQos(1)
+    {
+      initialize();
+    }
 
-  cv::imshow("view", mask);
-  cv::waitKey(10);
 
-  cv::Mat dilated, eroded;
-  float dilation_size=3.5;
-  cv::Mat morphology = getStructuringElement( cv::MORPH_RECT,
-                      cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
-                      cv::Point( dilation_size, dilation_size ) );
-  dilate(mask, dilated, morphology);
-  erode(dilated, eroded, morphology);
+  
+  private:
+    void initialize()
+    {
+      m_imageQos.keep_last(10);
+      m_imageQos.reliable();
+      m_imageQos.durability_volatile();
 
-  cv::imshow("dilate -> eroded", eroded);
-  cv::waitKey(10);
-
-  cv::Mat imgContours;
-  Canny(mask, imgContours, 30,200);
-
-  cv::imshow("conts", imgContours);
-  cv::waitKey(10);
-
-  std::vector<std::vector<cv::Point>> contours;
-  std::vector<cv::Vec4i> hierarchy;
-
-  findContours(eroded, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
-  cv::Mat res = cv::Mat::zeros (imgContours.size(), CV_8UC3);
-  for (size_t i =0; i < contours.size(); i++)
-  {
-          // draw Rotated Rect
-      cv::RotatedRect rotRect = minAreaRect(contours[i]);
-      cv::Point2f vertices[4];
-      rotRect.points(vertices);
-      for (int i = 0; i < 4; i++)
-          line(res, vertices[i], vertices[(i+1)%4], cv::Scalar(0,0,255), 2);
-
-    //cv::Rect box = boundingRect(contours[i]);
-    if ((rotRect.size.width/ rotRect.size.height) < 0.3 && rotRect.size.height > 300)
-    {      
-      //printf("Box[%ld] - %f, ", i, float(box.width)/ box.height);
-      drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
-      //printf("Contour %ld - %f/%f -> %f ---------", i, rotRect.size.width, rotRect.size.height , rotRect.size.width/rotRect.size.height);
-      cv::Moments moment = moments(contours[i]);
-      // calculate x,y coordinate of center
-      cv::Point2f momentPt;
-      if (moment.m00 != 0)
-      {
-        momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
-        circle(colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
-        putText(colorImage, "  :D", cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-      }
+      service_ = this->create_service<perception_msgs::srv::VelcroDimensions>("set_velcro_dimensions", std::bind(&VelcroCentroid::set_velcro_dimensions, this, _1, _2));
+      m_imageSub = image_transport::create_subscription(this, "gripper/color/image_raw", std::bind(&VelcroCentroid::imageCallback, this, _1),"raw",m_imageQos.get_rmw_qos_profile());
 
     }
-  }
-  //printf("\n");
 
-  cv::imshow("res", res);
-  cv::waitKey(10);
+    void set_velcro_dimensions(const std::shared_ptr<perception_msgs::srv::VelcroDimensions::Request> request,
+              std::shared_ptr<perception_msgs::srv::VelcroDimensions::Response>      response)
+    {
+      response->centroid_pose.position.x = request->aspect_ratio + request->size;
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Incoming request\nasp ratio: %f" " size: %f",
+                    request->aspect_ratio, request->size);
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "sending back response: [%f]", response->centroid_pose.position.x);
+      count_ = response->centroid_pose.position.x;
+    }
 
-  cv::imshow("final", colorImage);
-  cv::waitKey(10);
+    void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr & colorImMsgA)
+    {
+      processVelcro(colorImMsgA);
+    }
 
-}
+    void processVelcro(const sensor_msgs::msg::Image::ConstSharedPtr & colorImMsgA)
+    {
+      static cv::Mat mask;
+      cv::Mat colorImage = cv::Mat(cv_bridge::toCvShare(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
 
-int main(int argc, char ** argv)
+      ColorNames colorNames;
+      colorNames.createColorMask(colorImage, "black", mask);
+
+      cv::imshow("view", mask);
+      cv::waitKey(10);
+      cv::Mat dilated, eroded;
+      float dilation_size=3.5;
+      cv::Mat morphology = getStructuringElement( cv::MORPH_RECT,
+                          cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
+                          cv::Point( dilation_size, dilation_size ) );
+      dilate(mask, dilated, morphology);
+      erode(dilated, eroded, morphology);
+
+      cv::imshow("dilate -> eroded", eroded);
+      cv::waitKey(10);
+
+      cv::Mat imgContours;
+      Canny(mask, imgContours, 30,200);
+
+      cv::imshow("conts", imgContours);
+      cv::waitKey(10);
+
+      std::vector<std::vector<cv::Point>> contours;
+      std::vector<cv::Vec4i> hierarchy;
+
+      findContours(eroded, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+      cv::Mat res = cv::Mat::zeros (imgContours.size(), CV_8UC3);
+      for (size_t i =0; i < contours.size(); i++)
+      {
+              // draw Rotated Rect
+          cv::RotatedRect rotRect = minAreaRect(contours[i]);
+          cv::Point2f vertices[4];
+          rotRect.points(vertices);
+          for (int i = 0; i < 4; i++)
+              line(res, vertices[i], vertices[(i+1)%4], cv::Scalar(0,0,255), 2);
+
+        //cv::Rect box = boundingRect(contours[i]);
+        if ((rotRect.size.width/ rotRect.size.height) < 0.3 && rotRect.size.height > 300)
+        {      
+          //printf("Box[%ld] - %f, ", i, float(box.width)/ box.height);
+          drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
+          //printf("Contour %ld - %f/%f -> %f ---------", i, rotRect.size.width, rotRect.size.height , rotRect.size.width/rotRect.size.height);
+          cv::Moments moment = moments(contours[i]);
+          // calculate x,y coordinate of center
+          cv::Point2f momentPt;
+          if (moment.m00 != 0)
+          {
+            momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
+            circle(colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
+            putText(colorImage, "  :D", cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+          }
+
+        }
+      }
+      //printf("\n");
+
+      cv::imshow("res", res);
+      cv::waitKey(10);
+
+      cv::imshow("final", colorImage);
+      cv::waitKey(10);
+
+    }
+
+    rclcpp::QoS m_imageQos;
+    rclcpp::Service<perception_msgs::srv::VelcroDimensions>::SharedPtr service_;
+    image_transport::Subscriber m_imageSub;
+    double count_;
+};
+
+int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::NodeOptions options;
-  rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("velcro_centroid", options);
 
-  //rclcpp::Service<example_interfaces::srv::AddTwoInts>::SharedPtr service = node->create_service<example_interfaces::srv::AddTwoInts>("get_velcro_centroid", &add);
-
-  cv::namedWindow("view");
-  cv::startWindowThread();
-  image_transport::ImageTransport it(node);
-  image_transport::Subscriber sub = it.subscribe("gripper/color/image_raw", 1, imageCallback);
-  rclcpp::spin(node);
-  cv::destroyWindow("view");
+  rclcpp::spin(std::make_shared<VelcroCentroid>());
+  rclcpp::shutdown();
+  cv::destroyAllWindows();
 
   return 0;
 }

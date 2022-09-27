@@ -22,6 +22,7 @@ endif()
   find_package(pcl_ros REQUIRED)
   find_package(pcl_conversions REQUIRED)
   find_package(ros2_color_names_interfaces REQUIRED)
+  find_package(perception_msgs REQUIRED)
 
   ########################## OpenCV ###################################
 
@@ -55,6 +56,7 @@ endif()
                                         pcl_conversions
                                         pcl_ros
                                         ros2_color_names_interfaces
+                                        perception_msgs
                                         OpenCV
                                         PCL)
 
@@ -69,6 +71,7 @@ endif()
                                         cv_bridge
                                         color_names
                                         ros2_color_names_interfaces
+                                        perception_msgs
                                         OpenCV)
 
 install(TARGETS
