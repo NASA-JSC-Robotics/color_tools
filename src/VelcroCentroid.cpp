@@ -40,16 +40,16 @@ void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<perception_msgs
 
 void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr & colorImMsgA)
 {
-  processVelcro(colorImMsgA);
+  m_colorImage = cv::Mat(cv_bridge::toCvShare(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
+  processVelcro();
 }
 
-void VelcroCentroid::processVelcro(const sensor_msgs::msg::Image::ConstSharedPtr & colorImMsgA)
+void VelcroCentroid::processVelcro()
 {
   static cv::Mat mask;
-  cv::Mat colorImage = cv::Mat(cv_bridge::toCvShare(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
 
   ColorNames colorNames;
-  colorNames.createColorMask(colorImage, "black", mask);
+  colorNames.createColorMask(m_colorImage, "black", mask);
 
   cv::imshow("view", mask);
   cv::waitKey(10);
@@ -96,8 +96,8 @@ void VelcroCentroid::processVelcro(const sensor_msgs::msg::Image::ConstSharedPtr
       if (moment.m00 != 0)
       {
         momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
-        circle(colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
-        putText(colorImage, "  :D", cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
+        putText(m_colorImage, "  :D", cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
       }
 
     }
@@ -107,7 +107,7 @@ void VelcroCentroid::processVelcro(const sensor_msgs::msg::Image::ConstSharedPtr
   cv::imshow("res", res);
   cv::waitKey(10);
 
-  cv::imshow("final", colorImage);
+  cv::imshow("final", m_colorImage);
   cv::waitKey(10);
 
 }
