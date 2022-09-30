@@ -10,6 +10,10 @@ using std::placeholders::_2;
 
 VelcroCentroid::VelcroCentroid()
   : rclcpp::Node("velcro_centroid")
+  , m_velcroSize(100)
+  , m_velcroSizeThreshold(50)
+  , m_velcroAspectRatio(0.3)
+  , m_velcroARThreshold(0.25)
   , m_imageQos(1)
 {
   initialize();
@@ -22,10 +26,12 @@ void VelcroCentroid::initialize()
   m_imageQos.keep_last(10);
   m_imageQos.reliable();
   m_imageQos.durability_volatile();
+  m_velcroAspectRatio = -1;
+  m_velcroSize =-1;
 
   service_ = this->create_service<perception_msgs::srv::VelcroDimensions>("set_velcro_dimensions", std::bind(&VelcroCentroid::set_velcro_dimensions, this, _1, _2));
   m_imageSub = image_transport::create_subscription(this, "gripper/color/image_raw", std::bind(&VelcroCentroid::imageCallback, this, _1),"raw",m_imageQos.get_rmw_qos_profile());
-
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
 }
 
 void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<perception_msgs::srv::VelcroDimensions::Request> request,
@@ -34,14 +40,14 @@ void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<perception_msgs
   response->centroid_pose.position.x = request->aspect_ratio + request->size;
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Incoming request\nasp ratio: %f" " size: %f",
                 request->aspect_ratio, request->size);
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "sending back response: [%f]", response->centroid_pose.position.x);
-  //count_ = response->centroid_pose.position.x;
+  m_velcroAspectRatio = request->aspect_ratio;
+  m_velcroSize = request->size;
+  processVelcro();
 }
 
 void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr & colorImMsgA)
 {
   m_colorImage = cv::Mat(cv_bridge::toCvShare(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
-  processVelcro();
 }
 
 void VelcroCentroid::processVelcro()
@@ -52,7 +58,7 @@ void VelcroCentroid::processVelcro()
   colorNames.createColorMask(m_colorImage, "black", mask);
 
   cv::imshow("view", mask);
-  cv::waitKey(10);
+
   cv::Mat dilated, eroded;
   float dilation_size=3.5;
   cv::Mat morphology = getStructuringElement( cv::MORPH_RECT,
@@ -62,19 +68,18 @@ void VelcroCentroid::processVelcro()
   erode(dilated, eroded, morphology);
 
   cv::imshow("dilate -> eroded", eroded);
-  cv::waitKey(10);
 
   cv::Mat imgContours;
   Canny(mask, imgContours, 30,200);
 
   cv::imshow("conts", imgContours);
-  cv::waitKey(10);
 
   std::vector<std::vector<cv::Point>> contours;
   std::vector<cv::Vec4i> hierarchy;
 
   findContours(eroded, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
   cv::Mat res = cv::Mat::zeros (imgContours.size(), CV_8UC3);
+
   for (size_t i =0; i < contours.size(); i++)
   {
           // draw Rotated Rect
@@ -85,30 +90,35 @@ void VelcroCentroid::processVelcro()
           line(res, vertices[i], vertices[(i+1)%4], cv::Scalar(0,0,255), 2);
 
     //cv::Rect box = boundingRect(contours[i]);
-    if ((rotRect.size.width/ rotRect.size.height) < 0.3 && rotRect.size.height > 300)
-    {      
-      //printf("Box[%ld] - %f, ", i, float(box.width)/ box.height);
-      drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
-      //printf("Contour %ld - %f/%f -> %f ---------", i, rotRect.size.width, rotRect.size.height , rotRect.size.width/rotRect.size.height);
-      cv::Moments moment = moments(contours[i]);
-      // calculate x,y coordinate of center
-      cv::Point2f momentPt;
-      if (moment.m00 != 0)
+    // if rotated rectangle aspect ratio is < desired aspect ratio, and the height is above service specified threshold
+    if (m_velcroAspectRatio != -1 && m_velcroSize != -1)
+    {
+      if ((rotRect.size.width/ rotRect.size.height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (rotRect.size.width/ rotRect.size.height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
       {
-        momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
-        circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
-        putText(m_colorImage, "  :D", cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        if(rotRect.size.height > (m_velcroSize - m_velcroSize) && rotRect.size.height < (m_velcroSize + m_velcroSize) )
+        {
+          //printf("Box[%ld] - %f, ", i, float(box.width)/ box.height);
+          drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
+          //printf("Contour %ld - %f/%f -> %f ---------", i, rotRect.size.width, rotRect.size.height , rotRect.size.width/rotRect.size.height);
+          cv::Moments moment = moments(contours[i]);
+          // calculate x,y coordinate of center
+          cv::Point2f momentPt;
+          if (moment.m00 != 0)
+          {
+            momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
+            circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
+            putText(m_colorImage, "  :D", cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+          }
+        }
       }
-
     }
   }
   //printf("\n");
 
   cv::imshow("res", res);
-  cv::waitKey(10);
 
   cv::imshow("final", m_colorImage);
-  cv::waitKey(10);
+  cv::waitKey(0);
 
 }
 

@@ -24,6 +24,10 @@ class VelcroCentroid : public rclcpp::Node
         void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr & colorImMsgA);
         void processVelcro();
 
+        double m_velcroSize;
+        double m_velcroSizeThreshold;
+        double m_velcroAspectRatio;
+        double m_velcroARThreshold;
         rclcpp::QoS m_imageQos;
         rclcpp::Service<perception_msgs::srv::VelcroDimensions>::SharedPtr service_;
         image_transport::Subscriber m_imageSub;
