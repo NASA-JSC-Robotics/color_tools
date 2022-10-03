@@ -4,6 +4,7 @@
 #include "rclcpp/logging.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include <string>
 
 #include <color_names/ColorNames.h>
 #include "perception_msgs/srv/velcro_dimensions.hpp"

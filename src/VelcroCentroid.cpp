@@ -1,4 +1,5 @@
 #include "velcro-centroid/VelcroCentroid.h"
+#define MIN_OBJECT_SIZE 25
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -11,9 +12,9 @@ using std::placeholders::_2;
 VelcroCentroid::VelcroCentroid()
   : rclcpp::Node("velcro_centroid")
   , m_velcroSize(100)
-  , m_velcroSizeThreshold(50)
+  , m_velcroSizeThreshold(200)
   , m_velcroAspectRatio(0.3)
-  , m_velcroARThreshold(0.25)
+  , m_velcroARThreshold(0.55)
   , m_imageQos(1)
 {
   initialize();
@@ -42,12 +43,13 @@ void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<perception_msgs
                 request->aspect_ratio, request->size);
   m_velcroAspectRatio = request->aspect_ratio;
   m_velcroSize = request->size;
-  processVelcro();
+  //processVelcro();
 }
 
 void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr & colorImMsgA)
 {
   m_colorImage = cv::Mat(cv_bridge::toCvShare(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
+  processVelcro(); //tennis ball demo
 }
 
 void VelcroCentroid::processVelcro()
@@ -60,7 +62,7 @@ void VelcroCentroid::processVelcro()
   cv::imshow("view", mask);
 
   cv::Mat dilated, eroded;
-  float dilation_size=3.5;
+  float dilation_size=5.5;
   cv::Mat morphology = getStructuringElement( cv::MORPH_RECT,
                       cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                       cv::Point( dilation_size, dilation_size ) );
@@ -93,9 +95,16 @@ void VelcroCentroid::processVelcro()
     // if rotated rectangle aspect ratio is < desired aspect ratio, and the height is above service specified threshold
     if (m_velcroAspectRatio != -1 && m_velcroSize != -1)
     {
-      if ((rotRect.size.width/ rotRect.size.height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (rotRect.size.width/ rotRect.size.height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
+      // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "min AR: %f" " max AR: %f",
+      //   (m_velcroAspectRatio - m_velcroARThreshold/2) , (m_velcroAspectRatio + m_velcroARThreshold/2));
+      //if ((rotRect.size.width/ rotRect.size.height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (rotRect.size.width/ rotRect.size.height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
+      if(true)
       {
-        if(rotRect.size.height > (m_velcroSize - m_velcroSize) && rotRect.size.height < (m_velcroSize + m_velcroSize) )
+        //TODO: add in min max  boundaries
+        // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "min size: %f" " max size: %f",
+        //         m_velcroSize - m_velcroSizeThreshold, m_velcroSize + m_velcroSizeThreshold);
+        //if(rotRect.size.height > (m_velcroSize - m_velcroSizeThreshold) && rotRect.size.height < (m_velcroSize + m_velcroSizeThreshold) )
+        if(true)
         {
           //printf("Box[%ld] - %f, ", i, float(box.width)/ box.height);
           drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
@@ -107,7 +116,10 @@ void VelcroCentroid::processVelcro()
           {
             momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
             circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
-            putText(m_colorImage, "  :D", cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+            std::string boxAR = "AR: " + std::to_string((rotRect.size.width/ rotRect.size.height));
+            std::string boxSize = "size: " + std::to_string(rotRect.size.height );
+            putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+            putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
           }
         }
       }
@@ -118,7 +130,7 @@ void VelcroCentroid::processVelcro()
   cv::imshow("res", res);
 
   cv::imshow("final", m_colorImage);
-  cv::waitKey(0);
+  cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frme forever
 
 }
 
