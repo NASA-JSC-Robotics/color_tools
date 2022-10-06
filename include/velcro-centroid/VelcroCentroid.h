@@ -32,6 +32,8 @@ class VelcroCentroid : public rclcpp::Node
         rclcpp::QoS m_imageQos;
         rclcpp::Service<perception_msgs::srv::VelcroDimensions>::SharedPtr service_;
         image_transport::Subscriber m_imageSub;
+        cv::Mat m_mask;
+        ColorNames m_colorNames;
         cv::Mat m_colorImage;
 
 };
