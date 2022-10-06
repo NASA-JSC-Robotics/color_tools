@@ -11,10 +11,10 @@ using std::placeholders::_2;
 
 VelcroCentroid::VelcroCentroid()
   : rclcpp::Node("velcro_centroid")
-  , m_velcroSize(100)
-  , m_velcroSizeThreshold(200)
-  , m_velcroAspectRatio(0.3)
-  , m_velcroARThreshold(0.55)
+  , m_velcroSize(372)
+  , m_velcroSizeThreshold(50)
+  , m_velcroAspectRatio(0.06)
+  , m_velcroARThreshold(0.1)
   , m_imageQos(1)
 {
   initialize();
@@ -27,8 +27,8 @@ void VelcroCentroid::initialize()
   m_imageQos.keep_last(10);
   m_imageQos.reliable();
   m_imageQos.durability_volatile();
-  m_velcroAspectRatio = -1;
-  m_velcroSize =-1;
+  //m_velcroAspectRatio = -1;
+  //m_velcroSize =-1;
 
   service_ = this->create_service<perception_msgs::srv::VelcroDimensions>("set_velcro_dimensions", std::bind(&VelcroCentroid::set_velcro_dimensions, this, _1, _2));
   m_imageSub = image_transport::create_subscription(this, "gripper/color/image_raw", std::bind(&VelcroCentroid::imageCallback, this, _1),"raw",m_imageQos.get_rmw_qos_profile());
@@ -63,7 +63,7 @@ void VelcroCentroid::processVelcro()
   cv::imshow("colornames", m_mask);
 
   cv::Mat dilated, eroded;
-  float dilation_size=1.5;
+  float dilation_size=1.0;
   cv::Mat morphology = getStructuringElement( cv::MORPH_RECT,
                       cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                       cv::Point( dilation_size, dilation_size ) );
@@ -71,7 +71,7 @@ void VelcroCentroid::processVelcro()
   erode(m_mask, eroded, morphology);
   dilate(eroded, dilated, morphology);
 
-  dilation_size = 2.5;
+  dilation_size = 1.5;
   morphology = getStructuringElement( cv::MORPH_RECT,
                       cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                       cv::Point( dilation_size, dilation_size ) );
@@ -84,9 +84,10 @@ void VelcroCentroid::processVelcro()
 
   std::vector<std::vector<cv::Point>> contours;
   std::vector<cv::Vec4i> hierarchy;
-
+  
+  cv::Mat res = eroded;
   findContours(eroded, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
-  cv::Mat res = m_mask;
+
 
   for (size_t i =0; i < contours.size(); i++)
   {
@@ -94,26 +95,23 @@ void VelcroCentroid::processVelcro()
       cv::RotatedRect rotRect = minAreaRect(contours[i]);
       cv::Point2f vertices[4];
       rotRect.points(vertices);
-      //for (int i = 0; i < 4; i++)
-          //line(res, vertices[i], vertices[(i+1)%4], cv::Scalar(0,0,255), 2);
+      for (int i = 0; i < 4; i++)
+          line(res, vertices[i], vertices[(i+1)%4], cv::Scalar(0,0,255), 2);
 
     //cv::Rect box = boundingRect(contours[i]);
     // if rotated rectangle aspect ratio is < desired aspect ratio, and the height is above service specified threshold
-    //if (m_velcroAspectRatio != -1 && m_velcroSize != -1)
-    if(true)
+    if (m_velcroAspectRatio != -1 && m_velcroSize != -1)
     {
       // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "min AR: %f" " max AR: %f",
       //   (m_velcroAspectRatio - m_velcroARThreshold/2) , (m_velcroAspectRatio + m_velcroARThreshold/2));
-      //if ((rotRect.size.width/ rotRect.size.height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (rotRect.size.width/ rotRect.size.height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
-      if(true)
+      if ((rotRect.size.width/ rotRect.size.height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (rotRect.size.width/ rotRect.size.height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
       {
         // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "min size: %f" " max size: %f",
         //         m_velcroSize - m_velcroSizeThreshold, m_velcroSize + m_velcroSizeThreshold);
-        //if(rotRect.size.height > (m_velcroSize - m_velcroSizeThreshold) && rotRect.size.height < (m_velcroSize + m_velcroSizeThreshold) )
-        if(true)
+        if(rotRect.size.height > (m_velcroSize - m_velcroSizeThreshold) && rotRect.size.height < (m_velcroSize + m_velcroSizeThreshold) )
         {
           //printf("Box[%ld] - %f, ", i, float(box.width)/ box.height);
-          //drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
+          drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
           //printf("Contour %ld - %f/%f -> %f ---------", i, rotRect.size.width, rotRect.size.height , rotRect.size.width/rotRect.size.height);
           cv::Moments moment = moments(contours[i]);
           // calculate x,y coordinate of center
@@ -145,6 +143,7 @@ void VelcroCentroid::processVelcro()
 
 int main(int argc, char * argv[])
 {
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "opencv : %s\n", CV_VERSION);
   rclcpp::init(argc, argv);
 
   rclcpp::spin(std::make_shared<VelcroCentroid>());
