@@ -11,7 +11,7 @@ const cv::Vec3b ColorNames::colors[] = {cv::Vec3b(0, 0, 0),       cv::Vec3b(255,
 
 ColorNames::ColorNames(std::string encodingA)
 {
-    m_kernel = cv::Mat(5, 5, CV_8UC1);
+    m_kernel = cv::getStructuringElement(0, cv::Size( 2*2 + 1, 2*2+1 ), cv::Point(2, 2 ) );
     if(encodingA == "rgb8")
     {
         m_lut = cv::Mat(32768, 14, CV_32F, RgbLutData);
