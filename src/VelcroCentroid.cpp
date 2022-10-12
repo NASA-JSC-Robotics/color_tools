@@ -14,8 +14,8 @@ VelcroCentroid::VelcroCentroid()
   : rclcpp::Node("velcro_centroid")
   , m_velcroSize(372)
   , m_velcroSizeThreshold(50)
-  , m_velcroAspectRatio(0.06)
-  , m_velcroARThreshold(0.1)
+  , m_velcroAspectRatio(0.085)
+  , m_velcroARThreshold(0.03)
   , m_imageQos(1)
 {
   initialize();
@@ -114,12 +114,16 @@ void VelcroCentroid::processVelcro()
 
   for (size_t i =0; i < contours.size(); i++)
   {
-          // draw Rotated Rect
-      cv::RotatedRect rotRect = minAreaRect(contours[i]);
-      cv::Point2f vertices[4];
-      rotRect.points(vertices);
-      for (int i = 0; i < 4; i++)
-          line(res, vertices[i], vertices[(i+1)%4], cv::Scalar(0,0,255), 2);
+        // draw Rotated Rect
+    cv::RotatedRect rotRect = minAreaRect(contours[i]);
+    cv::Point2f vertices[4];
+    rotRect.points(vertices);
+    for (int i = 0; i < 4; i++)
+        line(res, vertices[i], vertices[(i+1)%4], cv::Scalar(0,0,255), 2);
+
+    //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of velcro"
+    double height = std::max(rotRect.size.height,rotRect.size.width);
+    double width = std::min(rotRect.size.height,rotRect.size.width);
 
     //cv::Rect box = boundingRect(contours[i]);
     // if rotated rectangle aspect ratio is < desired aspect ratio, and the height is above service specified threshold
@@ -127,15 +131,15 @@ void VelcroCentroid::processVelcro()
     {
       // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "min AR: %f" " max AR: %f",
       //   (m_velcroAspectRatio - m_velcroARThreshold/2) , (m_velcroAspectRatio + m_velcroARThreshold/2));
-      if ((rotRect.size.width/ rotRect.size.height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (rotRect.size.width/ rotRect.size.height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
+      if ((width / height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (width / height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
       {
         // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "min size: %f" " max size: %f",
         //         m_velcroSize - m_velcroSizeThreshold, m_velcroSize + m_velcroSizeThreshold);
         //if(rotRect.size.height > (m_velcroSize - m_velcroSizeThreshold) && rotRect.size.height < (m_velcroSize + m_velcroSizeThreshold) )
-        if(true)
+        if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE/2)
         {
           //printf("Box[%ld] - %f, ", i, float(box.width)/ box.height);
-          drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
+          //drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
           //printf("Contour %ld - %f/%f -> %f ---------", i, rotRect.size.width, rotRect.size.height , rotRect.size.width/rotRect.size.height);
           cv::Moments moment = moments(contours[i]);
           // calculate x,y coordinate of center
@@ -144,8 +148,8 @@ void VelcroCentroid::processVelcro()
           {
             momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
             circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
-            std::string boxAR = "AR: " + std::to_string((rotRect.size.width/ rotRect.size.height));
-            std::string boxSize = "size: " + std::to_string(rotRect.size.height );
+            std::string boxAR = "AR: " + std::to_string((width / height));
+            std::string boxSize = "size: " + std::to_string(width) + " " + std::to_string(height);
             putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             //Depth image stuff
@@ -157,10 +161,6 @@ void VelcroCentroid::processVelcro()
       }
     }
   }
-  //printf("\n");
-
-  cv::imshow("res", res);
-  cv::waitKey(1);
 
   cv::imshow("depth", m_depthImage);
   cv::waitKey(1);
