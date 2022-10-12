@@ -72,17 +72,13 @@ void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr
           printf("%s depth image type must be CV_32FC1 or CV_16UC1\n", __FUNCTION__);
       }
   }
-  processVelcro(); //tennis ball demo
+  processVelcro(); //live processing for debugging
 }
 
 void VelcroCentroid::processVelcro()
 {
-  //cv::imshow("pre-process", m_colorImage);
-
   m_mask = 0;
   m_colorNames.createColorMask(m_colorImage, "black", m_mask);
-
-
   cv::imshow("colornames", m_mask);
 
   cv::Mat dilated, eroded;
@@ -90,16 +86,12 @@ void VelcroCentroid::processVelcro()
   cv::Mat morphology = getStructuringElement( cv::MORPH_RECT,
                       cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                       cv::Point( dilation_size, dilation_size ) );
-  //erodes first to delete smol blips
+
+  //erode first to delete smol noise outside obect of interest, dilate to restore object of interest to proper size
   erode(m_mask, eroded, morphology);
   dilate(eroded, dilated, morphology);
 
-  dilation_size = 1.5;
-  morphology = getStructuringElement( cv::MORPH_RECT,
-                      cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
-                      cv::Point( dilation_size, dilation_size ) );
-
-  //dilates and then erodes to patch holes in in blobs
+  //dilates to fill in noise inside object of interest and make it solid. erode to restore object to proper size
   dilate(dilated, dilated, morphology);
   erode(dilated, eroded, morphology);
 
@@ -108,41 +100,29 @@ void VelcroCentroid::processVelcro()
   std::vector<std::vector<cv::Point>> contours;
   std::vector<cv::Vec4i> hierarchy;
 
-  cv::Mat res = eroded;
   findContours(eroded, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
 
 
   for (size_t i =0; i < contours.size(); i++)
   {
-        // draw Rotated Rect
+    // draw Rotated Rect
     cv::RotatedRect rotRect = minAreaRect(contours[i]);
-    cv::Point2f vertices[4];
-    rotRect.points(vertices);
-    for (int i = 0; i < 4; i++)
-        line(res, vertices[i], vertices[(i+1)%4], cv::Scalar(0,0,255), 2);
 
     //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of velcro"
     double height = std::max(rotRect.size.height,rotRect.size.width);
     double width = std::min(rotRect.size.height,rotRect.size.width);
 
-    //cv::Rect box = boundingRect(contours[i]);
     // if rotated rectangle aspect ratio is < desired aspect ratio, and the height is above service specified threshold
     if (m_velcroAspectRatio != -1 && m_velcroSize != -1)
     {
-      // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "min AR: %f" " max AR: %f",
-      //   (m_velcroAspectRatio - m_velcroARThreshold/2) , (m_velcroAspectRatio + m_velcroARThreshold/2));
+      // if aspect ratio is within threshold of what is expected.
       if ((width / height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (width / height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
       {
-        // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "min size: %f" " max size: %f",
-        //         m_velcroSize - m_velcroSizeThreshold, m_velcroSize + m_velcroSizeThreshold);
-        //if(rotRect.size.height > (m_velcroSize - m_velcroSizeThreshold) && rotRect.size.height < (m_velcroSize + m_velcroSizeThreshold) )
+        // if object meets min size requirement (close enough that it is not considered random noise)
         if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE/2)
         {
-          //printf("Box[%ld] - %f, ", i, float(box.width)/ box.height);
-          //drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
-          //printf("Contour %ld - %f/%f -> %f ---------", i, rotRect.size.width, rotRect.size.height , rotRect.size.width/rotRect.size.height);
+          // calculate x,y coordinate of centroid
           cv::Moments moment = moments(contours[i]);
-          // calculate x,y coordinate of center
           cv::Point2f momentPt;
           if (moment.m00 != 0)
           {
@@ -162,11 +142,11 @@ void VelcroCentroid::processVelcro()
     }
   }
 
-  cv::imshow("depth", m_depthImage);
+  cv::imshow("depth image", m_depthImage);
   cv::waitKey(1);
 
-  cv::imshow("final", m_colorImage);
-  cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frme forever
+  cv::imshow("final result", m_colorImage);
+  cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
 
 }
 
