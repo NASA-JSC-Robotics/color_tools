@@ -3,6 +3,7 @@
 
 using std::placeholders::_1;
 using std::placeholders::_2;
+using std::placeholders::_3;
 
 
 // save the image to a member and then process the image with what comes in the service call.
@@ -31,7 +32,15 @@ void VelcroCentroid::initialize()
   //m_velcroSize =-1;
 
   service_ = this->create_service<perception_msgs::srv::VelcroDimensions>("set_velcro_dimensions", std::bind(&VelcroCentroid::set_velcro_dimensions, this, _1, _2));
-  m_imageSub = image_transport::create_subscription(this, "gripper/color/image_raw", std::bind(&VelcroCentroid::imageCallback, this, _1),"raw",m_imageQos.get_rmw_qos_profile());
+
+  m_depthImageSub.subscribe(this, "gripper/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
+  m_colorImageSub.subscribe(this, "gripper/color/image_raw", m_imageQos.get_rmw_qos_profile());
+  m_colorInfoSub.subscribe(this, "gripper/color/camera_info", m_imageQos.get_rmw_qos_profile());
+
+  m_timeSyncPtr = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
+                                        sensor_msgs::msg::CameraInfo>>(m_colorImageSub, m_depthImageSub, m_colorInfoSub, 10);
+  m_timeSyncPtr->registerCallback(std::bind(&VelcroCentroid::imageCallback, this, std::placeholders::_1,
+                                      std::placeholders::_2, std::placeholders::_3));
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
 }
 
@@ -46,9 +55,23 @@ void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<perception_msgs
   //processVelcro();
 }
 
-void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr & colorImMsgA)
+void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
+                                         const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
+                                         const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
 {
   m_colorImage = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
+  m_depthImage = cv::Mat(cv_bridge::toCvCopy(depthImMsgA)->image);    
+  if(m_depthImage.type() != CV_32FC1)
+  {
+      if(m_depthImage.type() == CV_16UC1)
+      {
+          cv::Mat(m_depthImage).convertTo(m_depthImage, CV_32FC1, 0.001);
+      }
+      else
+      {
+          printf("%s depth image type must be CV_32FC1 or CV_16UC1\n", __FUNCTION__);
+      }
+  }
   processVelcro(); //tennis ball demo
 }
 
@@ -84,7 +107,7 @@ void VelcroCentroid::processVelcro()
 
   std::vector<std::vector<cv::Point>> contours;
   std::vector<cv::Vec4i> hierarchy;
-  
+
   cv::Mat res = eroded;
   findContours(eroded, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
 
@@ -108,7 +131,8 @@ void VelcroCentroid::processVelcro()
       {
         // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "min size: %f" " max size: %f",
         //         m_velcroSize - m_velcroSizeThreshold, m_velcroSize + m_velcroSizeThreshold);
-        if(rotRect.size.height > (m_velcroSize - m_velcroSizeThreshold) && rotRect.size.height < (m_velcroSize + m_velcroSizeThreshold) )
+        //if(rotRect.size.height > (m_velcroSize - m_velcroSizeThreshold) && rotRect.size.height < (m_velcroSize + m_velcroSizeThreshold) )
+        if(true)
         {
           //printf("Box[%ld] - %f, ", i, float(box.width)/ box.height);
           drawContours(res, contours, (int)i, cv::Scalar(0,255,0), 3, cv::LINE_8, hierarchy, 0);
@@ -124,6 +148,10 @@ void VelcroCentroid::processVelcro()
             std::string boxSize = "size: " + std::to_string(rotRect.size.height );
             putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+            //Depth image stuff
+            //cv::Point depth= cv::Point(int(floor(momentPt.x)),int(floor(momentPt.x)));
+            std::string  depthPrint = "depth: " + std::to_string(m_depthImage.at<float>(momentPt));
+            putText(m_colorImage, depthPrint, cv::Point2f(momentPt.x - 25, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
           }
         }
       }
@@ -134,6 +162,8 @@ void VelcroCentroid::processVelcro()
   cv::imshow("res", res);
   cv::waitKey(1);
 
+  cv::imshow("depth", m_depthImage);
+  cv::waitKey(1);
 
   cv::imshow("final", m_colorImage);
   cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frme forever
