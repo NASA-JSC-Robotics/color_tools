@@ -6,6 +6,7 @@
 #include "rclcpp/logging.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "geometry_msgs/msg/pose.hpp"
 #include <string>
 
 #include <color_names/ColorNames.h>
@@ -27,7 +28,7 @@ private:
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
-    void processVelcro();
+    void processVelcro(geometry_msgs::msg::Pose &velcroPos);
 
     double m_velcroSize;
     double m_velcroSizeThreshold;

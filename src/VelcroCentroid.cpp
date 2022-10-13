@@ -47,12 +47,13 @@ void VelcroCentroid::initialize()
 void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<perception_msgs::srv::VelcroDimensions::Request> request,
           std::shared_ptr<perception_msgs::srv::VelcroDimensions::Response>      response)
 {
-  response->centroid_pose.position.x = request->aspect_ratio + request->size;
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Incoming request\nasp ratio: %f" " size: %f",
-                request->aspect_ratio, request->size);
-  m_velcroAspectRatio = request->aspect_ratio;
-  m_velcroSize = request->size;
-  //processVelcro();
+  std::string test = "Incoming Request - Aspect Ratio: " + std::to_string(request->aspect_ratio) + " Size: " + std::to_string(request->size);
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), test.c_str());
+  // m_velcroAspectRatio = request->aspect_ratio;
+  // m_velcroSize = request->size;
+  geometry_msgs::msg::Pose velcroPos;
+  processVelcro(velcroPos);
+  response->centroid_pose = velcroPos;
 }
 
 void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
@@ -72,14 +73,15 @@ void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr
           printf("%s depth image type must be CV_32FC1 or CV_16UC1\n", __FUNCTION__);
       }
   }
-  processVelcro(); //live processing for debugging
+  // geometry_msgs::msg::Pose velcroPos;
+  // processVelcro(velcroPos); //live processing for debugging
 }
 
-void VelcroCentroid::processVelcro()
+void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
 {
   m_mask = 0;
   m_colorNames.createColorMask(m_colorImage, "black", m_mask);
-  cv::imshow("colornames", m_mask);
+  //cv::imshow("colornames", m_mask);
 
   cv::Mat dilated, eroded;
   float dilation_size=1.0;
@@ -95,14 +97,12 @@ void VelcroCentroid::processVelcro()
   dilate(dilated, dilated, morphology);
   erode(dilated, eroded, morphology);
 
-  cv::imshow("dilate -> eroded", eroded);
-
   std::vector<std::vector<cv::Point>> contours;
   std::vector<cv::Vec4i> hierarchy;
 
   findContours(eroded, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
 
-
+  std::string temp;
   for (size_t i =0; i < contours.size(); i++)
   {
     // draw Rotated Rect
@@ -120,28 +120,38 @@ void VelcroCentroid::processVelcro()
       {
         // if object meets min size requirement (close enough that it is not considered random noise)
         if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE/2)
-        {
+        {   
+
           // calculate x,y coordinate of centroid
           cv::Moments moment = moments(contours[i]);
           cv::Point2f momentPt;
           if (moment.m00 != 0)
-          {
+          { 
+
             momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
+
             circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
             std::string boxAR = "AR: " + std::to_string((width / height));
             std::string boxSize = "size: " + std::to_string(width) + " " + std::to_string(height);
             putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             //Depth image stuff
-            //cv::Point depth= cv::Point(int(floor(momentPt.x)),int(floor(momentPt.x)));
-            std::string  depthPrint = "depth: " + std::to_string(m_depthImage.at<float>(momentPt));
+            std::string  depthPrint = "depth: " + std::to_string(m_depthImage.at<float>(momentPt)) + ", " + std::to_string(momentPt.x);
             putText(m_colorImage, depthPrint, cv::Point2f(momentPt.x - 25, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+
+            //set output for service call
+            temp = std::to_string(momentPt.x);
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), temp.c_str());
+            velcroPos.position.x = momentPt.x;
+            velcroPos.position.y = momentPt.y;
+            velcroPos.position.z = m_depthImage.at<float>(momentPt);
           }
         }
       }
     }
   }
-
+  cv::imshow("colornames", m_mask);
+  cv::imshow("dilate -> eroded", eroded);
   cv::imshow("depth image", m_depthImage);
   cv::waitKey(1);
 
