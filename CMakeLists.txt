@@ -45,6 +45,8 @@ endif()
   rclcpp
   rclcpp_action
   rclcpp_components
+  tf2
+  tf2_ros
   sensor_msgs
   image_transport 
   cv_bridge

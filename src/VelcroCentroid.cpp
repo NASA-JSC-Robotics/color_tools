@@ -51,9 +51,11 @@ void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<perception_msgs
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), test.c_str());
   // m_velcroAspectRatio = request->aspect_ratio;
   // m_velcroSize = request->size;
-  geometry_msgs::msg::Pose velcroPos;
-  processVelcro(velcroPos);
-  response->centroid_pose = velcroPos;
+
+    geometry_msgs::msg::Pose velcroPos;
+    processVelcro(velcroPos);
+    response->centroid_pose = velcroPos;
+
 }
 
 void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
@@ -132,7 +134,7 @@ void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
 
             circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
             std::string boxAR = "AR: " + std::to_string((width / height));
-            std::string boxSize = "size: " + std::to_string(width) + " " + std::to_string(height);
+            std::string boxSize = "size: " + std::to_string(width) + " " + std::to_string(height) + " angle: " + std::to_string(rotRect.angle);
             putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             //Depth image stuff
@@ -156,7 +158,7 @@ void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
   cv::waitKey(1);
 
   cv::imshow("final result", m_colorImage);
-  cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
+  cv::waitKey(0); //set to 1 for coninuous output, set to 0 for single frame forever
 
 }
 

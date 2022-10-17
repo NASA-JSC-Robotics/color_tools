@@ -13,8 +13,6 @@
 #include "perception_msgs/srv/velcro_dimensions.hpp"
 #include "std_msgs/msg/string.hpp"
 
-
-
 class VelcroCentroid : public rclcpp::Node
 {
 public:
