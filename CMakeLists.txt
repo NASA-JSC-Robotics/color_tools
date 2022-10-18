@@ -88,6 +88,20 @@ endif()
                                         perception_msgs
                                         OpenCV)
 
+  
+  add_executable(DebugCentroid src/DebugCentroid.cpp)
+  ament_target_dependencies(DebugCentroid 
+                                        rclcpp
+                                        rclcpp_action
+                                        rclcpp_components
+                                        sensor_msgs
+                                        image_transport 
+                                        cv_bridge
+                                        color_names
+                                        ros2_color_names_interfaces
+                                        perception_msgs
+                                        OpenCV)
+
   add_executable(CentroidClient src/CentroidClient.cpp)
   ament_target_dependencies(CentroidClient ${dependencies})
 
@@ -95,6 +109,7 @@ install(TARGETS
   ${PROJECT_NAME}
   VelcroCentroid
   CentroidClient
+  DebugCentroid
   DESTINATION lib/${PROJECT_NAME}/)
 
   if(BUILD_TESTING)

@@ -12,9 +12,9 @@ using std::placeholders::_3;
 
 VelcroCentroid::VelcroCentroid()
   : rclcpp::Node("velcro_centroid")
-  , m_velcroSize(372)
+  , m_velcroSize(-1)
   , m_velcroSizeThreshold(50)
-  , m_velcroAspectRatio(0.085)
+  , m_velcroAspectRatio(-1)
   , m_velcroARThreshold(0.03)
   , m_imageQos(1)
 {
@@ -28,7 +28,7 @@ void VelcroCentroid::initialize()
   m_imageQos.keep_last(10);
   m_imageQos.reliable();
   m_imageQos.durability_volatile();
-  //turn off for live debugging
+
   m_velcroAspectRatio = -1;
   m_velcroSize =-1;
 
@@ -42,7 +42,7 @@ void VelcroCentroid::initialize()
                                         sensor_msgs::msg::CameraInfo>>(m_colorImageSub, m_depthImageSub, m_colorInfoSub, 10);
   m_timeSyncPtr->registerCallback(std::bind(&VelcroCentroid::imageCallback, this, std::placeholders::_1,
                                       std::placeholders::_2, std::placeholders::_3));
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Outputting images and centroid information.\nSet aspect ratio to -1 to output all blobs in specified color");
 }
 
 void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<perception_msgs::srv::VelcroDimensions::Request> request,
@@ -53,10 +53,7 @@ void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<perception_msgs
   m_velcroAspectRatio = request->aspect_ratio;
   m_velcroSize = request->size;
 
-  geometry_msgs::msg::Pose velcroPos;
-  processVelcro(velcroPos);
-  response->centroid_pose = velcroPos;
-
+  response->centroid_pose.position.x = -1; response->centroid_pose.position.y = -1; response->centroid_pose.position.z = -1;
 }
 
 void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
@@ -76,8 +73,8 @@ void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr
           printf("%s depth image type must be CV_32FC1 or CV_16UC1\n", __FUNCTION__);
       }
   }
-  // geometry_msgs::msg::Pose velcroPos;
-  // processVelcro(velcroPos); //live processing for debugging
+  geometry_msgs::msg::Pose velcroPos;
+  processVelcro(velcroPos); //live processing for debugging
 }
 
 void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
@@ -115,14 +112,47 @@ void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
     double height = std::max(rotRect.size.height,rotRect.size.width);
     double width = std::min(rotRect.size.height,rotRect.size.width);
 
-    // if rotated rectangle aspect ratio is < desired aspect ratio, and the height is above service specified threshold
+    // if aspect ratio set to -1, 
+    if (m_velcroAspectRatio == -1)
+    {
+        // calculate x,y coordinate of centroid
+        cv::Moments moment = moments(contours[i]);
+        cv::Point2f momentPt;
+        if (moment.m00 != 0)
+        { 
+
+        momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
+
+        circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
+        std::string boxAR = "AR: " + std::to_string((width / height));
+        std::string boxSize = "width: " + std::to_string(width) + " height: " + std::to_string(height);
+        putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        //Depth image stuff
+        std::string  depthPrint = "depth: " + std::to_string(m_depthImage.at<float>(momentPt)) + " angle: " + std::to_string(rotRect.angle);
+        putText(m_colorImage, depthPrint, cv::Point2f(momentPt.x - 25, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+
+        //set output for service call
+        // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), std::to_string(rotRect.angle).c_str());
+        velcroPos.position.x = momentPt.x;
+        velcroPos.position.y = momentPt.y;
+        velcroPos.position.z = m_depthImage.at<float>(momentPt);
+        tf2::Quaternion q;
+        q.setRPY(rotRect.angle, 0, 0);
+        velcroPos.orientation.x = q.x();
+        velcroPos.orientation.y = q.y();
+        velcroPos.orientation.z = q.z();
+        velcroPos.orientation.w = q.w();
+        }
+    }
+    // if given a specified aspect ratio/size, filter out based on minimum and threshold
     if (m_velcroAspectRatio != -1 && m_velcroSize != -1)
     {
       // if aspect ratio is within threshold of what is expected.
       if ((width / height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (width / height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
       {
         // if object meets min size requirement (close enough that it is not considered random noise)
-        if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE/2 && height > (m_velcroSize-m_velcroSizeThreshold) && height < (m_velcroSize + m_velcroSizeThreshold))
+        if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE/2 )
         {   
 
           // calculate x,y coordinate of centroid
@@ -135,14 +165,15 @@ void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
 
             circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
             std::string boxAR = "AR: " + std::to_string((width / height));
-            std::string boxSize = "size: " + std::to_string(width) + " " + std::to_string(height) + " angle: " + std::to_string(rotRect.angle);
+            std::string boxSize = "width: " + std::to_string(width) + " height: " + std::to_string(height);
             putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             //Depth image stuff
-            std::string  depthPrint = "depth: " + std::to_string(m_depthImage.at<float>(momentPt)) + ", " + std::to_string(momentPt.x);
+            std::string  depthPrint = "depth: " + std::to_string(m_depthImage.at<float>(momentPt)) + " angle: " + std::to_string(rotRect.angle);
             putText(m_colorImage, depthPrint, cv::Point2f(momentPt.x - 25, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
 
             //set output for service call
+            // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), std::to_string(rotRect.angle).c_str());
             velcroPos.position.x = momentPt.x;
             velcroPos.position.y = momentPt.y;
             velcroPos.position.z = m_depthImage.at<float>(momentPt);
@@ -152,20 +183,18 @@ void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
             velcroPos.orientation.y = q.y();
             velcroPos.orientation.z = q.z();
             velcroPos.orientation.w = q.w();
-            std::string output = "Velcro found at " + std::to_string(velcroPos.position.x) + ", " + std::to_string(velcroPos.position.y) + ", " + std::to_string(velcroPos.position.z) + ", " + " angled: " + std::to_string(rotRect.angle) + "\n";
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
           }
         }
       }
     }
   }
-  // cv::imshow("colornames", m_mask);
-  // cv::imshow("dilate -> eroded", eroded);
-  // cv::imshow("depth image", m_depthImage);
-  // cv::waitKey(1);
+  cv::imshow("colornames", m_mask);
+  cv::imshow("dilate -> eroded", eroded);
+  cv::imshow("depth image", m_depthImage);
+  cv::waitKey(1);
 
-  // cv::imshow("final result", m_colorImage);
-  // cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
+  cv::imshow("final result", m_colorImage);
+  cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
 
 }
 

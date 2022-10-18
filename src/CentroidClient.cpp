@@ -46,13 +46,10 @@ int main(int argc, char **argv)
     geometry_msgs::msg::TransformStamped t;
     t.header.stamp = node->get_clock()->now();
     t.header.frame_id = "world";
-    t.child_frame_id = "happyframe";
+    t.child_frame_id = "velcro_centroid";
     t.transform.translation.x = result.get()->centroid_pose.position.x;
     t.transform.translation.y = result.get()->centroid_pose.position.y;
     t.transform.translation.z = result.get()->centroid_pose.position.z;
-
-    tf2::Quaternion q;
-    q.setRPY(0, 0, 30);
     t.transform.rotation.x = result.get()->centroid_pose.orientation.x;
     t.transform.rotation.y = result.get()->centroid_pose.orientation.y;
     t.transform.rotation.z = result.get()->centroid_pose.orientation.z;
