@@ -45,6 +45,7 @@ private:
     ColorNames m_colorNames;
     cv::Mat m_colorImage;
     cv::Mat m_depthImage;
+    cv::Mat m_morphology;
     sensor_msgs::msg::CameraInfo m_imageInfo;
 
 };

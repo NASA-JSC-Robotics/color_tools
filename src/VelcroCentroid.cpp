@@ -32,6 +32,11 @@ void VelcroCentroid::initialize()
   m_velcroAspectRatio = -1;
   m_velcroSize =-1;
 
+  float dilation_size=1.0;
+  m_morphology = getStructuringElement( cv::MORPH_RECT,
+                      cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
+                      cv::Point( dilation_size, dilation_size ) );
+
   service_ = this->create_service<perception_msgs::srv::VelcroDimensions>("set_velcro_dimensions", std::bind(&VelcroCentroid::set_velcro_dimensions, this, _1, _2));
 
   m_depthImageSub.subscribe(this, "gripper/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
@@ -48,8 +53,8 @@ void VelcroCentroid::initialize()
 void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<perception_msgs::srv::VelcroDimensions::Request> request,
           std::shared_ptr<perception_msgs::srv::VelcroDimensions::Response>      response)
 {
-  std::string test = "Incoming Request - Aspect Ratio: " + std::to_string(request->aspect_ratio) + " Size: " + std::to_string(request->size);
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), test.c_str());
+  std::string req = "Incoming Request - Aspect Ratio: " + std::to_string(request->aspect_ratio) + " Size: " + std::to_string(request->size);
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), req.c_str());
   m_velcroAspectRatio = request->aspect_ratio;
   m_velcroSize = request->size;
 
@@ -64,7 +69,8 @@ void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr
                                          const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
 {
   m_colorImage = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
-  m_depthImage = cv::Mat(cv_bridge::toCvCopy(depthImMsgA)->image);    
+  m_depthImage = cv::Mat(cv_bridge::toCvCopy(depthImMsgA)->image);
+  infoMsgA->header.frame_id;
   if(m_depthImage.type() != CV_32FC1)
   {
       if(m_depthImage.type() == CV_16UC1)
@@ -84,28 +90,22 @@ void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
 {
   m_mask = 0;
   m_colorNames.createColorMask(m_colorImage, "black", m_mask);
-  //cv::imshow("colornames", m_mask);
 
   cv::Mat dilated, eroded;
-  float dilation_size=1.0;
-  cv::Mat morphology = getStructuringElement( cv::MORPH_RECT,
-                      cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
-                      cv::Point( dilation_size, dilation_size ) );
 
   //erode first to delete smol noise outside obect of interest, dilate to restore object of interest to proper size
-  erode(m_mask, eroded, morphology);
-  dilate(eroded, dilated, morphology);
+  erode(m_mask, eroded, m_morphology);
+  dilate(eroded, dilated, m_morphology);
 
   //dilates to fill in noise inside object of interest and make it solid. erode to restore object to proper size
-  dilate(dilated, dilated, morphology);
-  erode(dilated, eroded, morphology);
+  dilate(dilated, dilated, m_morphology);
+  erode(dilated, eroded, m_morphology);
 
   std::vector<std::vector<cv::Point>> contours;
   std::vector<cv::Vec4i> hierarchy;
 
   findContours(eroded, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
 
-  std::string temp;
   for (size_t i =0; i < contours.size(); i++)
   {
     // draw Rotated Rect
