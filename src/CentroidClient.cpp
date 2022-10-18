@@ -46,7 +46,7 @@ int main(int argc, char **argv)
     //std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     //tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(node);
 
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "position: %f, %f, %f", result.get()->centroid_pose.position.x ,result.get()->centroid_pose.position.y ,result.get()->centroid_pose.position.z);
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "position: %f, %f, %f, orientation: %f, %f, %f, %f", result.get()->centroid_pose.position.x ,result.get()->centroid_pose.position.y ,result.get()->centroid_pose.position.z,result.get()->centroid_pose.orientation.x,result.get()->centroid_pose.orientation.y,result.get()->centroid_pose.orientation.z,result.get()->centroid_pose.orientation.w);
     geometry_msgs::msg::TransformStamped t;
     t.header.stamp = node->get_clock()->now();
     t.header.frame_id = "world";
@@ -57,10 +57,10 @@ int main(int argc, char **argv)
 
     tf2::Quaternion q;
     q.setRPY(0, 0, 30);
-    t.transform.rotation.x = q.x();
-    t.transform.rotation.y = q.y();
-    t.transform.rotation.z = q.z();
-    t.transform.rotation.w = q.w();
+    t.transform.rotation.x = result.get()->centroid_pose.orientation.x;
+    t.transform.rotation.y = result.get()->centroid_pose.orientation.y;
+    t.transform.rotation.z = result.get()->centroid_pose.orientation.z;
+    t.transform.rotation.w = result.get()->centroid_pose.orientation.w;
     tf_bc.sendTransform(t);
 
   } else {

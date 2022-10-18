@@ -142,23 +142,28 @@ void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
             putText(m_colorImage, depthPrint, cv::Point2f(momentPt.x - 25, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
 
             //set output for service call
-            temp = std::to_string(momentPt.x);
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), temp.c_str());
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), std::to_string(rotRect.angle).c_str());
             velcroPos.position.x = momentPt.x;
             velcroPos.position.y = momentPt.y;
             velcroPos.position.z = m_depthImage.at<float>(momentPt);
+            tf2::Quaternion q;
+            q.setRPY(rotRect.angle, 0, 0);
+            velcroPos.orientation.x = q.x();
+            velcroPos.orientation.y = q.y();
+            velcroPos.orientation.z = q.z();
+            velcroPos.orientation.w = q.w();
           }
         }
       }
     }
   }
-  cv::imshow("colornames", m_mask);
-  cv::imshow("dilate -> eroded", eroded);
-  cv::imshow("depth image", m_depthImage);
-  cv::waitKey(1);
+  // cv::imshow("colornames", m_mask);
+  // cv::imshow("dilate -> eroded", eroded);
+  // cv::imshow("depth image", m_depthImage);
+  // cv::waitKey(1);
 
-  cv::imshow("final result", m_colorImage);
-  cv::waitKey(0); //set to 1 for coninuous output, set to 0 for single frame forever
+  // cv::imshow("final result", m_colorImage);
+  // cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
 
 }
 

@@ -7,6 +7,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "geometry_msgs/msg/pose.hpp"
+#include "tf2/LinearMath/Quaternion.h"
 #include <string>
 
 #include <color_names/ColorNames.h>
