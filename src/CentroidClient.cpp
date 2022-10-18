@@ -41,11 +41,7 @@ int main(int argc, char **argv)
   if (rclcpp::spin_until_future_complete(node, result) ==
     rclcpp::FutureReturnCode::SUCCESS)
   {
-    //rclcpp::QoS qos = rclcpp::QoS(1);
     static tf2_ros::TransformBroadcaster tf_bc = tf2_ros::TransformBroadcaster(node);
-    //std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
-    //tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(node);
-
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "position: %f, %f, %f, orientation: %f, %f, %f, %f", result.get()->centroid_pose.position.x ,result.get()->centroid_pose.position.y ,result.get()->centroid_pose.position.z,result.get()->centroid_pose.orientation.x,result.get()->centroid_pose.orientation.y,result.get()->centroid_pose.orientation.z,result.get()->centroid_pose.orientation.w);
     geometry_msgs::msg::TransformStamped t;
     t.header.stamp = node->get_clock()->now();
