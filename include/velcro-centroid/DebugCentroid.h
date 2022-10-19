@@ -6,18 +6,16 @@
 #include "rclcpp/logging.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
-#include "geometry_msgs/msg/pose.hpp"
-#include "tf2/LinearMath/Quaternion.h"
 #include <string>
 
 #include <color_names/ColorNames.h>
 #include "dex_ivr_interfaces/srv/velcro_dimensions.hpp"
 
-class VelcroCentroid : public rclcpp::Node
+class DebugCentroid : public rclcpp::Node
 {
 public:
-    VelcroCentroid();
-    ~VelcroCentroid();
+    DebugCentroid();
+    ~DebugCentroid();
 
 private:
     void initialize();
@@ -26,7 +24,7 @@ private:
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
-    void processVelcro(geometry_msgs::msg::Pose &velcroPos);
+    void processVelcro();
 
     double m_velcroSize;
     double m_velcroSizeThreshold;

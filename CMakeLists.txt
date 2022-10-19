@@ -22,7 +22,7 @@ endif()
   find_package(pcl_ros REQUIRED)
   find_package(pcl_conversions REQUIRED)
   find_package(ros2_color_names_interfaces REQUIRED)
-  find_package(perception_msgs REQUIRED)
+  find_package(dex_ivr_interfaces REQUIRED)
 
   ########################## OpenCV ###################################
 
@@ -41,18 +41,36 @@ endif()
 
   add_library(${PROJECT_NAME} src/VelcroCentroid.cpp)
 
-  set(dependencies
+  set(centroid_dependencies
+  rclcpp
+  rclcpp_action
+  rclcpp_components
+  message_filters
+  tf2
+  tf2_ros
+  std_msgs
+  sensor_msgs
+  image_transport 
+  geometry_msgs
+  cv_bridge
+  color_names
+  ros2_color_names_interfaces
+  dex_ivr_interfaces
+  OpenCV)
+
+  set(client_dependencies
   rclcpp
   rclcpp_action
   rclcpp_components
   tf2
   tf2_ros
+  std_msgs
   sensor_msgs
   image_transport 
   cv_bridge
   color_names
   ros2_color_names_interfaces
-  perception_msgs
+  dex_ivr_interfaces
   OpenCV)
 
   ament_target_dependencies(${PROJECT_NAME} 
@@ -60,33 +78,21 @@ endif()
                                         rclcpp_components
                                         rclcpp_action
                                         std_msgs
-                                        geometry_msgs
                                         sensor_msgs
                                         image_transport
                                         cv_bridge
                                         image_geometry
                                         color_names
                                         message_filters
-                                        pcl_conversions
-                                        pcl_ros
                                         ros2_color_names_interfaces
-                                        perception_msgs
+                                        dex_ivr_interfaces
+                                        geometry_msgs
                                         OpenCV
                                         PCL)
 
 
   add_executable(VelcroCentroid src/VelcroCentroid.cpp)
-  ament_target_dependencies(VelcroCentroid 
-                                        rclcpp
-                                        rclcpp_action
-                                        rclcpp_components
-                                        sensor_msgs
-                                        image_transport 
-                                        cv_bridge
-                                        color_names
-                                        ros2_color_names_interfaces
-                                        perception_msgs
-                                        OpenCV)
+  ament_target_dependencies(VelcroCentroid ${centroid_dependencies})
 
   
   add_executable(DebugCentroid src/DebugCentroid.cpp)
@@ -99,11 +105,11 @@ endif()
                                         cv_bridge
                                         color_names
                                         ros2_color_names_interfaces
-                                        perception_msgs
+                                        dex_ivr_interfaces
                                         OpenCV)
 
   add_executable(CentroidClient src/CentroidClient.cpp)
-  ament_target_dependencies(CentroidClient ${dependencies})
+  ament_target_dependencies(CentroidClient ${client_dependencies})
 
 install(TARGETS
   ${PROJECT_NAME}

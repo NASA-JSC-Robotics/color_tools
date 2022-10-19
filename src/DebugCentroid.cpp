@@ -1,4 +1,4 @@
-#include "velcro-centroid/VelcroCentroid.h"
+#include "velcro-centroid/DebugCentroid.h"
 #define MIN_OBJECT_SIZE 25
 
 using std::placeholders::_1;
@@ -8,20 +8,21 @@ using std::placeholders::_3;
 // save the image to a member and then process the image with what comes in the service call.
 //for future streaming purposes, you would need to set up a multithreaded executor, put a wait in service, and then separate both subscribers into unique callback groups
 
-VelcroCentroid::VelcroCentroid()
+DebugCentroid::DebugCentroid()
   : rclcpp::Node("debug_centroid")
   , m_velcroSize(-1)
   , m_velcroSizeThreshold(50)
   , m_velcroAspectRatio(-1)
   , m_velcroARThreshold(0.03)
   , m_imageQos(1)
+  , m_color("black")
 {
   initialize();
 }
 
-VelcroCentroid::~VelcroCentroid(){}
+DebugCentroid::~DebugCentroid(){}
 
-void VelcroCentroid::initialize()
+void DebugCentroid::initialize()
 {
     m_imageQos.keep_last(10);
     m_imageQos.reliable();
@@ -35,7 +36,7 @@ void VelcroCentroid::initialize()
                         cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                         cv::Point( dilation_size, dilation_size ) );
 
-    service_ = this->create_service<perception_msgs::srv::VelcroDimensions>("set_velcro_dimensions", std::bind(&VelcroCentroid::set_velcro_dimensions, this, _1, _2));
+    service_ = this->create_service<dex_ivr_interfaces::srv::VelcroDimensions>("set_velcro_dimensions", std::bind(&DebugCentroid::set_velcro_dimensions, this, _1, _2));
 
     m_depthImageSub.subscribe(this, "gripper/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
     m_colorImageSub.subscribe(this, "gripper/color/image_raw", m_imageQos.get_rmw_qos_profile());
@@ -43,23 +44,27 @@ void VelcroCentroid::initialize()
 
     m_timeSyncPtr = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
                                         sensor_msgs::msg::CameraInfo>>(m_colorImageSub, m_depthImageSub, m_colorInfoSub, 10);
-    m_timeSyncPtr->registerCallback(std::bind(&VelcroCentroid::imageCallback, this, std::placeholders::_1,
+    m_timeSyncPtr->registerCallback(std::bind(&DebugCentroid::imageCallback, this, std::placeholders::_1,
                                         std::placeholders::_2, std::placeholders::_3));
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Outputting images and centroid information.\nSet aspect ratio to -1 to output all blobs in specified color");
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Outputting images and centroid information.\nSet aspect ratio & size to -1 to output all blobs in the specified color");
 }
 
-void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<perception_msgs::srv::VelcroDimensions::Request> request,
-          std::shared_ptr<perception_msgs::srv::VelcroDimensions::Response>      response)
+void DebugCentroid::set_velcro_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Request> request,
+          std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Response>      response)
 {
     std::string test = "Incoming Request - Aspect Ratio: " + std::to_string(request->aspect_ratio) + " Size: " + std::to_string(request->size);
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), test.c_str());
     m_velcroAspectRatio = request->aspect_ratio;
+    m_velcroARThreshold = request->aspect_ratio_threshold;
     m_velcroSize = request->size;
+    m_velcroSizeThreshold = request->size_threshold;
+    m_color = request->color;
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "request color -> %s", request->color.c_str());
 
     response->centroid_pose.position.x = -1; response->centroid_pose.position.y = -1; response->centroid_pose.position.z = -1;
 }
 
-void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
+void DebugCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                                          const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                                          const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
 {
@@ -77,14 +82,13 @@ void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr
             printf("%s depth image type must be CV_32FC1 or CV_16UC1\n", __FUNCTION__);
         }
     }
-    geometry_msgs::msg::Pose velcroPos;
-    processVelcro(velcroPos); //live processing for debugging
+    processVelcro(); //live processing for debugging
 }
 
-void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
+void DebugCentroid::processVelcro()
 {
     m_mask = 0;
-    m_colorNames.createColorMask(m_colorImage, "black", m_mask);
+    m_colorNames.createColorMask(m_colorImage, m_color, m_mask);
 
     cv::Mat dilated, eroded;
 
@@ -113,18 +117,20 @@ void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
         bool processContour = false;
         if (m_velcroAspectRatio == -1 &&  m_velcroSize == -1 )
         {
-            processContour = true;
+            //eliminate noisey shadows
+            if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE)
+                processContour = true;
         }
         // if aspect ratio exists and is within threshold of what is expected.
         if (m_velcroAspectRatio != -1 && (width / height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (width / height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
         {
-            processContour = true;
+            // if size exists and meets min size requirement (close enough that it is not considered random noise)
+            if(m_velcroSize != -1 && height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE && height > (m_velcroSize-m_velcroSizeThreshold) && height < (m_velcroSize + m_velcroSizeThreshold))
+            {
+                processContour = true;
+            }
         }
-        // if size exists and meets min size requirement (close enough that it is not considered random noise)
-        if(m_velcroSize != -1 && height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE/2 && height > (m_velcroSize-m_velcroSizeThreshold) && height < (m_velcroSize + m_velcroSizeThreshold))
-        {   
-            processContour = true;
-        }
+
 
         // default behavior (Aspect/Size == -1) is to process all contours that appear
         if (processContour)
@@ -144,9 +150,6 @@ void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
                 //Depth image stuff
                 std::string  depthPrint = "depth: " + std::to_string(m_depthImage.at<float>(momentPt)) + " angle: " + std::to_string(rotRect.angle);
                 putText(m_colorImage, depthPrint, cv::Point2f(momentPt.x - 25, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-                velcroPos.position.x = momentPt.x;
-                velcroPos.position.y = momentPt.y;
-                velcroPos.position.z = m_depthImage.at<float>(momentPt);
             }
         }
     }
@@ -165,7 +168,7 @@ int main(int argc, char * argv[])
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "opencv : %s\n", CV_VERSION);
     rclcpp::init(argc, argv);
 
-    rclcpp::spin(std::make_shared<VelcroCentroid>());
+    rclcpp::spin(std::make_shared<DebugCentroid>());
     rclcpp::shutdown();
     cv::destroyAllWindows();
 
