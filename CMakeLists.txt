@@ -19,23 +19,16 @@ endif()
   find_package(cv_bridge REQUIRED)
   find_package(image_geometry REQUIRED)
   find_package(message_filters REQUIRED)
-  find_package(pcl_ros REQUIRED)
-  find_package(pcl_conversions REQUIRED)
   find_package(ros2_color_names_interfaces REQUIRED)
   find_package(dex_ivr_interfaces REQUIRED)
+  find_package(tf2 REQUIRED)
+  find_package(tf2_ros REQUIRED)
 
   ########################## OpenCV ###################################
 
   find_package(OpenCV REQUIRED)
   include_directories(${OpenCV_INCLUDE_DIRS})
 
-  ############################# PCL #####################################
-  if(NOT DEFINED CMAKE_SUPPRESS_DEVELOPER_WARNINGS)
-       set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "No dev warnings")
-  endif()
-  find_package(PCL REQUIRED)
-
-  #####################################################################
 
   include_directories(include)
 
@@ -73,22 +66,7 @@ endif()
   dex_ivr_interfaces
   OpenCV)
 
-  ament_target_dependencies(${PROJECT_NAME} 
-                                        rclcpp
-                                        rclcpp_components
-                                        rclcpp_action
-                                        std_msgs
-                                        sensor_msgs
-                                        image_transport
-                                        cv_bridge
-                                        image_geometry
-                                        color_names
-                                        message_filters
-                                        ros2_color_names_interfaces
-                                        dex_ivr_interfaces
-                                        geometry_msgs
-                                        OpenCV
-                                        PCL)
+  ament_target_dependencies(${PROJECT_NAME} ${centroid_dependencies})
 
 
   add_executable(VelcroCentroid src/VelcroCentroid.cpp)
@@ -96,17 +74,7 @@ endif()
 
   
   add_executable(DebugCentroid src/DebugCentroid.cpp)
-  ament_target_dependencies(DebugCentroid 
-                                        rclcpp
-                                        rclcpp_action
-                                        rclcpp_components
-                                        sensor_msgs
-                                        image_transport 
-                                        cv_bridge
-                                        color_names
-                                        ros2_color_names_interfaces
-                                        dex_ivr_interfaces
-                                        OpenCV)
+  ament_target_dependencies(DebugCentroid ${centroid_dependencies})
 
   add_executable(CentroidClient src/CentroidClient.cpp)
   ament_target_dependencies(CentroidClient ${client_dependencies})
