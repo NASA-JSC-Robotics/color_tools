@@ -17,7 +17,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 
 set(service_files
-  "srv/VelcroDimensions.srv"
+  "srv/BlobDimensions.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
