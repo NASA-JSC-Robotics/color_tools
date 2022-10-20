@@ -35,7 +35,7 @@ void ColorBlobCentroid::initialize()
                       cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                       cv::Point( dilation_size, dilation_size ) );
 
-  service_ = this->create_service<dex_ivr_interfaces::srv::VelcroDimensions>("set_velcro_dimensions", std::bind(&ColorBlobCentroid::set_blob_dimensions, this, _1, _2));
+  service_ = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("set_blob_dimensions", std::bind(&ColorBlobCentroid::set_blob_dimensions, this, _1, _2));
 
   m_depthImageSub.subscribe(this, "gripper/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
   m_colorImageSub.subscribe(this, "gripper/color/image_raw", m_imageQos.get_rmw_qos_profile());
@@ -48,8 +48,8 @@ void ColorBlobCentroid::initialize()
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
 }
 
-void ColorBlobCentroid::set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Request> request,
-          std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Response>      response)
+void ColorBlobCentroid::set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
+          std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response>      response)
 {
   std::string req = "Incoming Request - Aspect Ratio: " + std::to_string(request->aspect_ratio) + " Size: " + std::to_string(request->size);
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), req.c_str());

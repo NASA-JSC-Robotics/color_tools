@@ -1,5 +1,5 @@
 #include "rclcpp/rclcpp.hpp"
-#include "dex_ivr_interfaces/srv/velcro_dimensions.hpp"
+#include "dex_ivr_interfaces/srv/blob_dimensions.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2_ros/transform_broadcaster.h"
@@ -15,16 +15,16 @@ int main(int argc, char **argv)
   rclcpp::init(argc, argv);
 
   if (argc != 6) {
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "usage: velcro_dimensions_client <aspect ratio> <aspect threshold> <size> <size threshold>");
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "usage: blob_dimensions_client <aspect ratio> <aspect threshold> <size> <size threshold>");
       return 1;
   }
 
-  std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("velcro_dimensions_client");
-  rclcpp::Client<dex_ivr_interfaces::srv::VelcroDimensions>::SharedPtr client =
-    node->create_client<dex_ivr_interfaces::srv::VelcroDimensions>("set_velcro_dimensions");
+  std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("blob_dimensions_client");
+  rclcpp::Client<dex_ivr_interfaces::srv::BlobDimensions>::SharedPtr client =
+    node->create_client<dex_ivr_interfaces::srv::BlobDimensions>("set_blob_dimensions");
 
 
-  auto request = std::make_shared<dex_ivr_interfaces::srv::VelcroDimensions::Request>();
+  auto request = std::make_shared<dex_ivr_interfaces::srv::BlobDimensions::Request>();
   request->aspect_ratio = atof(argv[1]);
   request->aspect_ratio_threshold = atof(argv[2]);
   request->size = atof(argv[3]);
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
     tf_bc.sendTransform(t);
 
   } else {
-    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service set_velcro_dimensions");
+    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service set_blob_dimensions");
   }
 
   rclcpp::shutdown();

@@ -11,7 +11,7 @@
 #include <string>
 
 #include <color_names/ColorNames.h>
-#include "dex_ivr_interfaces/srv/velcro_dimensions.hpp"
+#include "dex_ivr_interfaces/srv/blob_dimensions.hpp"
 
 class ColorBlobCentroid : public rclcpp::Node
 {
@@ -21,8 +21,8 @@ public:
 
 private:
     void initialize();
-    void set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Request> request,
-      std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Response>      response);
+    void set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
+      std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response>      response);
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
@@ -33,7 +33,7 @@ private:
     double m_blobAspectRatio;
     double m_blobARThreshold;
     rclcpp::QoS m_imageQos;
-    rclcpp::Service<dex_ivr_interfaces::srv::VelcroDimensions>::SharedPtr service_;
+    rclcpp::Service<dex_ivr_interfaces::srv::BlobDimensions>::SharedPtr service_;
 
     message_filters::Subscriber<sensor_msgs::msg::Image> m_depthImageSub;
     message_filters::Subscriber<sensor_msgs::msg::Image> m_colorImageSub;

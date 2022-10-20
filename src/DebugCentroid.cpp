@@ -10,10 +10,10 @@ using std::placeholders::_3;
 
 DebugCentroid::DebugCentroid()
   : rclcpp::Node("debug_centroid")
-  , m_velcroSize(-1)
-  , m_velcroSizeThreshold(50)
-  , m_velcroAspectRatio(-1)
-  , m_velcroARThreshold(0.03)
+  , m_blobSize(-1)
+  , m_blobSizeThreshold(50)
+  , m_blobAspectRatio(-1)
+  , m_blobARThreshold(0.03)
   , m_imageQos(1)
   , m_color("black")
 {
@@ -28,15 +28,12 @@ void DebugCentroid::initialize()
     m_imageQos.reliable();
     m_imageQos.durability_volatile();
 
-    m_velcroAspectRatio = -1;
-    m_velcroSize =-1;
-
     float dilation_size=1.0;
     m_morphology = getStructuringElement( cv::MORPH_RECT,
                         cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                         cv::Point( dilation_size, dilation_size ) );
 
-    service_ = this->create_service<dex_ivr_interfaces::srv::VelcroDimensions>("set_velcro_dimensions", std::bind(&DebugCentroid::set_velcro_dimensions, this, _1, _2));
+    service_ = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("set_blob_dimensions", std::bind(&DebugCentroid::set_blob_dimensions, this, _1, _2));
 
     m_depthImageSub.subscribe(this, "gripper/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
     m_colorImageSub.subscribe(this, "gripper/color/image_raw", m_imageQos.get_rmw_qos_profile());
@@ -49,15 +46,15 @@ void DebugCentroid::initialize()
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Outputting images and centroid information.\nSet aspect ratio & size to -1 to output all blobs in the specified color");
 }
 
-void DebugCentroid::set_velcro_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Request> request,
-          std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Response>      response)
+void DebugCentroid::set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
+          std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response>      response)
 {
     std::string test = "Incoming Request - Aspect Ratio: " + std::to_string(request->aspect_ratio) + " Size: " + std::to_string(request->size);
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), test.c_str());
-    m_velcroAspectRatio = request->aspect_ratio;
-    m_velcroARThreshold = request->aspect_ratio_threshold;
-    m_velcroSize = request->size;
-    m_velcroSizeThreshold = request->size_threshold;
+    m_blobAspectRatio = request->aspect_ratio;
+    m_blobARThreshold = request->aspect_ratio_threshold;
+    m_blobSize = request->size;
+    m_blobSizeThreshold = request->size_threshold;
     m_color = request->color;
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "request color -> %s", request->color.c_str());
 
@@ -82,10 +79,10 @@ void DebugCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr&
             printf("%s depth image type must be CV_32FC1 or CV_16UC1\n", __FUNCTION__);
         }
     }
-    processVelcro(); //live processing for debugging
+    processBlob(); //live processing for debugging
 }
 
-void DebugCentroid::processVelcro()
+void DebugCentroid::processBlob()
 {
     m_mask = 0;
     m_colorNames.createColorMask(m_colorImage, m_color, m_mask);
@@ -109,23 +106,23 @@ void DebugCentroid::processVelcro()
     {
         //Get rotated-rectangle boundary fit of blob from the generated image mask
         cv::RotatedRect rotRect = minAreaRect(contours[i]);
-        //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of velcro"
+        //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of blob"
         double height = std::max(rotRect.size.height,rotRect.size.width);
         double width = std::min(rotRect.size.height,rotRect.size.width);
 
         // if aspect ratio is set to something specific for testing, only process those nodes
         bool processContour = false;
-        if (m_velcroAspectRatio == -1 &&  m_velcroSize == -1 )
+        if (m_blobAspectRatio == -1 &&  m_blobSize == -1 )
         {
             //eliminate noisey shadows
             if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE)
                 processContour = true;
         }
         // if aspect ratio exists and is within threshold of what is expected.
-        if (m_velcroAspectRatio != -1 && (width / height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (width / height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
+        if (m_blobAspectRatio != -1 && (width / height) < (m_blobAspectRatio + m_blobARThreshold/2) &&  (width / height) > (m_blobAspectRatio - m_blobARThreshold/2))
         {
             // if size exists and meets min size requirement (close enough that it is not considered random noise)
-            if(m_velcroSize != -1 && height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE && height > (m_velcroSize-m_velcroSizeThreshold) && height < (m_velcroSize + m_velcroSizeThreshold))
+            if(m_blobSize != -1 && height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE && height > (m_blobSize-m_blobSizeThreshold) && height < (m_blobSize + m_blobSizeThreshold))
             {
                 processContour = true;
             }
