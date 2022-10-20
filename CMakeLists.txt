@@ -32,7 +32,7 @@ endif()
 
   include_directories(include)
 
-  add_library(${PROJECT_NAME} src/VelcroCentroid.cpp)
+  add_library(${PROJECT_NAME} src/ColorBlobCentroid.cpp)
 
   set(centroid_dependencies
   rclcpp
@@ -69,8 +69,8 @@ endif()
   ament_target_dependencies(${PROJECT_NAME} ${centroid_dependencies})
 
 
-  add_executable(VelcroCentroid src/VelcroCentroid.cpp)
-  ament_target_dependencies(VelcroCentroid ${centroid_dependencies})
+  add_executable(ColorBlobCentroid src/ColorBlobCentroid.cpp)
+  ament_target_dependencies(ColorBlobCentroid ${centroid_dependencies})
 
   
   add_executable(DebugCentroid src/DebugCentroid.cpp)
@@ -81,7 +81,7 @@ endif()
 
 install(TARGETS
   ${PROJECT_NAME}
-  VelcroCentroid
+  ColorBlobCentroid
   CentroidClient
   DebugCentroid
   DESTINATION lib/${PROJECT_NAME}/)

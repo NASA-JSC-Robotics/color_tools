@@ -13,25 +13,25 @@
 #include <color_names/ColorNames.h>
 #include "dex_ivr_interfaces/srv/velcro_dimensions.hpp"
 
-class VelcroCentroid : public rclcpp::Node
+class ColorBlobCentroid : public rclcpp::Node
 {
 public:
-    VelcroCentroid();
-    ~VelcroCentroid();
+    ColorBlobCentroid();
+    ~ColorBlobCentroid();
 
 private:
     void initialize();
-    void set_velcro_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Request> request,
+    void set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Request> request,
       std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Response>      response);
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
-    void processVelcro(geometry_msgs::msg::Pose &velcroPos);
+    void processBlob(geometry_msgs::msg::Pose &blobPos);
 
-    double m_velcroSize;
-    double m_velcroSizeThreshold;
-    double m_velcroAspectRatio;
-    double m_velcroARThreshold;
+    double m_blobSize;
+    double m_blobSizeThreshold;
+    double m_blobAspectRatio;
+    double m_blobARThreshold;
     rclcpp::QoS m_imageQos;
     rclcpp::Service<dex_ivr_interfaces::srv::VelcroDimensions>::SharedPtr service_;
 

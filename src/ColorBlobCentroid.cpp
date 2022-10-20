@@ -1,4 +1,4 @@
-#include "velcro-centroid/VelcroCentroid.h"
+#include "velcro-centroid/ColorBlobCentroid.h"
 #define MIN_OBJECT_SIZE 25
 
 using std::placeholders::_1;
@@ -10,35 +10,32 @@ using std::placeholders::_3;
 
 //for future streaming purposes, you would need to set up a multithreaded executor, put a wait in service, and then separate both subscribers into unique callback groups
 
-VelcroCentroid::VelcroCentroid()
-  : rclcpp::Node("velcro_centroid")
-  , m_velcroSize(372)
-  , m_velcroSizeThreshold(50)
-  , m_velcroAspectRatio(0.085)
-  , m_velcroARThreshold(0.03)
+ColorBlobCentroid::ColorBlobCentroid()
+  : rclcpp::Node("color_blob_centroid")
+  , m_blobSize(-1)
+  , m_blobSizeThreshold(50)
+  , m_blobAspectRatio(-1)
+  , m_blobARThreshold(0.03)
   , m_imageQos(1)
   , m_color("black")
 {
   initialize();
 }
 
-VelcroCentroid::~VelcroCentroid(){}
+ColorBlobCentroid::~ColorBlobCentroid(){}
 
-void VelcroCentroid::initialize()
+void ColorBlobCentroid::initialize()
 {
   m_imageQos.keep_last(10);
   m_imageQos.reliable();
   m_imageQos.durability_volatile();
-  //turn off for live debugging
-  m_velcroAspectRatio = -1;
-  m_velcroSize =-1;
 
   float dilation_size=1.0;
   m_morphology = getStructuringElement( cv::MORPH_RECT,
                       cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                       cv::Point( dilation_size, dilation_size ) );
 
-  service_ = this->create_service<dex_ivr_interfaces::srv::VelcroDimensions>("set_velcro_dimensions", std::bind(&VelcroCentroid::set_velcro_dimensions, this, _1, _2));
+  service_ = this->create_service<dex_ivr_interfaces::srv::VelcroDimensions>("set_velcro_dimensions", std::bind(&ColorBlobCentroid::set_blob_dimensions, this, _1, _2));
 
   m_depthImageSub.subscribe(this, "gripper/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
   m_colorImageSub.subscribe(this, "gripper/color/image_raw", m_imageQos.get_rmw_qos_profile());
@@ -46,29 +43,29 @@ void VelcroCentroid::initialize()
 
   m_timeSyncPtr = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
                                         sensor_msgs::msg::CameraInfo>>(m_colorImageSub, m_depthImageSub, m_colorInfoSub, 10);
-  m_timeSyncPtr->registerCallback(std::bind(&VelcroCentroid::imageCallback, this, std::placeholders::_1,
+  m_timeSyncPtr->registerCallback(std::bind(&ColorBlobCentroid::imageCallback, this, std::placeholders::_1,
                                       std::placeholders::_2, std::placeholders::_3));
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
 }
 
-void VelcroCentroid::set_velcro_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Request> request,
+void ColorBlobCentroid::set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Request> request,
           std::shared_ptr<dex_ivr_interfaces::srv::VelcroDimensions::Response>      response)
 {
   std::string req = "Incoming Request - Aspect Ratio: " + std::to_string(request->aspect_ratio) + " Size: " + std::to_string(request->size);
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), req.c_str());
-  m_velcroAspectRatio = request->aspect_ratio;
-  m_velcroARThreshold = request->aspect_ratio_threshold;
-  m_velcroSize = request->size;
-  m_velcroSizeThreshold = request->size_threshold;
+  m_blobAspectRatio = request->aspect_ratio;
+  m_blobARThreshold = request->aspect_ratio_threshold;
+  m_blobSize = request->size;
+  m_blobSizeThreshold = request->size_threshold;
   m_color = request->color;
 
-  geometry_msgs::msg::Pose velcroPos;
-  processVelcro(velcroPos);
-  response->centroid_pose = velcroPos;
+  geometry_msgs::msg::Pose blobPos;
+  processBlob(blobPos);
+  response->centroid_pose = blobPos;
 
 }
 
-void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
+void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                                          const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                                          const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
 {
@@ -86,11 +83,9 @@ void VelcroCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr
           printf("%s depth image type must be CV_32FC1 or CV_16UC1\n", __FUNCTION__);
       }
   }
-  // geometry_msgs::msg::Pose velcroPos;
-  // processVelcro(velcroPos); //live processing for debugging
 }
 
-void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
+void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
 {
   m_mask = 0;
   m_colorNames.createColorMask(m_colorImage, m_color, m_mask);
@@ -115,18 +110,18 @@ void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
     // draw Rotated Rect
     cv::RotatedRect rotRect = minAreaRect(contours[i]);
 
-    //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of velcro"
+    //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of blob"
     double height = std::max(rotRect.size.height,rotRect.size.width);
     double width = std::min(rotRect.size.height,rotRect.size.width);
 
     // if rotated rectangle aspect ratio is < desired aspect ratio, and the height is above service specified threshold
-    if (m_velcroAspectRatio != -1 && m_velcroSize != -1)
+    if (m_blobAspectRatio != -1 && m_blobSize != -1)
     {
       // if aspect ratio is within threshold of what is expected.
-      if ((width / height) < (m_velcroAspectRatio + m_velcroARThreshold/2) &&  (width / height) > (m_velcroAspectRatio - m_velcroARThreshold/2))
+      if ((width / height) < (m_blobAspectRatio + m_blobARThreshold/2) &&  (width / height) > (m_blobAspectRatio - m_blobARThreshold/2))
       {
         // if object meets min size requirement (close enough that it is not considered random noise)
-        if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE && height > (m_velcroSize-m_velcroSizeThreshold) && height < (m_velcroSize + m_velcroSizeThreshold))
+        if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE && height > (m_blobSize-m_blobSizeThreshold) && height < (m_blobSize + m_blobSizeThreshold))
         {   
 
           // calculate x,y coordinate of centroid
@@ -147,16 +142,16 @@ void VelcroCentroid::processVelcro(geometry_msgs::msg::Pose &velcroPos)
             putText(m_colorImage, depthPrint, cv::Point2f(momentPt.x - 25, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
 
             //set output for service call
-            velcroPos.position.x = momentPt.x;
-            velcroPos.position.y = momentPt.y;
-            velcroPos.position.z = m_depthImage.at<float>(momentPt);
+            blobPos.position.x = momentPt.x;
+            blobPos.position.y = momentPt.y;
+            blobPos.position.z = m_depthImage.at<float>(momentPt);
             tf2::Quaternion q;
             q.setRPY(rotRect.angle, 0, 0);
-            velcroPos.orientation.x = q.x();
-            velcroPos.orientation.y = q.y();
-            velcroPos.orientation.z = q.z();
-            velcroPos.orientation.w = q.w();
-            std::string output = "Velcro found at " + std::to_string(velcroPos.position.x) + ", " + std::to_string(velcroPos.position.y) + ", " + std::to_string(velcroPos.position.z) + ", " + " angled: " + std::to_string(rotRect.angle) + "\n";
+            blobPos.orientation.x = q.x();
+            blobPos.orientation.y = q.y();
+            blobPos.orientation.z = q.z();
+            blobPos.orientation.w = q.w();
+            std::string output = "Object found at " + std::to_string(blobPos.position.x) + ", " + std::to_string(blobPos.position.y) + ", " + std::to_string(blobPos.position.z) + ", " + " angled: " + std::to_string(rotRect.angle) + "\n";
             RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
           }
         }
@@ -179,7 +174,7 @@ int main(int argc, char * argv[])
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "opencv : %s\n", CV_VERSION);
   rclcpp::init(argc, argv);
 
-  rclcpp::spin(std::make_shared<VelcroCentroid>());
+  rclcpp::spin(std::make_shared<ColorBlobCentroid>());
   rclcpp::shutdown();
   cv::destroyAllWindows();
 
