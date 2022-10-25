@@ -113,6 +113,11 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
     //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of blob"
     double height = std::max(rotRect.size.height,rotRect.size.width);
     double width = std::min(rotRect.size.height,rotRect.size.width);
+    double angle;
+    if(rotRect.size.width < rotRect.size.height)
+      angle = rotRect.angle;
+    else
+      angle = -angle;
 
     // if rotated rectangle aspect ratio is < desired aspect ratio, and the height is above service specified threshold
     if (m_blobAspectRatio != -1 && m_blobSize != -1)
@@ -134,7 +139,7 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
 
             circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
             std::string boxAR = "AR: " + std::to_string((width / height));
-            std::string boxSize = "size: " + std::to_string(width) + " " + std::to_string(height) + " angle: " + std::to_string(rotRect.angle);
+            std::string boxSize = "size: " + std::to_string(width) + " " + std::to_string(height) + " angle: " + std::to_string(angle);
             putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             //Depth image stuff
