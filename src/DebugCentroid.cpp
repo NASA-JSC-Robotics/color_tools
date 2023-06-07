@@ -35,9 +35,9 @@ void DebugCentroid::initialize()
 
     service_ = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("set_blob_dimensions", std::bind(&DebugCentroid::set_blob_dimensions, this, _1, _2));
 
-    m_depthImageSub.subscribe(this, "gripper/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
-    m_colorImageSub.subscribe(this, "gripper/color/image_raw", m_imageQos.get_rmw_qos_profile());
-    m_colorInfoSub.subscribe(this, "gripper/color/camera_info", m_imageQos.get_rmw_qos_profile());
+    m_depthImageSub.subscribe(this, "/camera/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
+    m_colorImageSub.subscribe(this, "/camera/color/image_raw", m_imageQos.get_rmw_qos_profile());
+    m_colorInfoSub.subscribe(this, "/camera/color/camera_info", m_imageQos.get_rmw_qos_profile());
 
     m_timeSyncPtr = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
                                         sensor_msgs::msg::CameraInfo>>(m_colorImageSub, m_depthImageSub, m_colorInfoSub, 10);
