@@ -66,8 +66,9 @@ void DebugCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr&
                                          const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
 {
     m_colorImage = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
-    m_depthImage = cv::Mat(cv_bridge::toCvCopy(depthImMsgA)->image);    
-    infoMsgA->header.frame_id; //this is just to make the compiler as this is unused but available if necessary
+    m_depthImage = cv::Mat(cv_bridge::toCvCopy(depthImMsgA)->image);
+    m_imageInfo = *infoMsgA;
+
     if(m_depthImage.type() != CV_32FC1)
     {
         if(m_depthImage.type() == CV_16UC1)
@@ -146,8 +147,13 @@ void DebugCentroid::processBlob()
         putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
         putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
         //Depth image stuff
-        std::string  depthPrint = "depth: " + std::to_string(m_depthImage.at<float>(momentPt)) + " angle: " + std::to_string(rotRect.angle);
+        double depth = m_depthImage.at<float>(momentPt);
+        std::string  depthPrint = "depth: " + std::to_string(depth) + " angle: " + std::to_string(rotRect.angle);
         putText(m_colorImage, depthPrint, cv::Point2f(momentPt.x - 25, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        double worldX = (momentPt.x-m_imageInfo.k.at(2)) * (depth/m_imageInfo.k.at(0)); // (x' - cx) * (depth/focal length x) --- where x' is image x in pixels and cx is center of image x from camera image
+        double worldY = (momentPt.y-m_imageInfo.k.at(5)) * (depth/m_imageInfo.k.at(4)); // (y' - cy) * (depth/focal length y) --- where y' is image y in pixels and cy is center of image y from camera image
+        std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
+        putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 25, momentPt.y + 35),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
 
         //extreme points
         cv::Point left = *min_element(contours[i].begin(), contours[i].end(), 
