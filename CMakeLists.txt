@@ -21,8 +21,9 @@ endif()
   find_package(message_filters REQUIRED)
   find_package(ros2_color_names_interfaces REQUIRED)
   find_package(dex_ivr_interfaces REQUIRED)
-  find_package(tf2 REQUIRED)
   find_package(tf2_ros REQUIRED)
+  find_package(tf2 REQUIRED)
+  find_package(tf2_geometry_msgs REQUIRED)
 
   ########################## OpenCV ###################################
 
@@ -39,8 +40,9 @@ endif()
   rclcpp_action
   rclcpp_components
   message_filters
-  tf2
   tf2_ros
+  tf2
+  tf2_geometry_msgs
   std_msgs
   sensor_msgs
   image_transport 

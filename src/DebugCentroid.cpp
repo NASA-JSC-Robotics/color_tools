@@ -1,5 +1,5 @@
 #include "velcro-centroid/DebugCentroid.h"
-#define MIN_OBJECT_SIZE 25
+#define MIN_OBJECT_SIZE 18
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -15,7 +15,7 @@ DebugCentroid::DebugCentroid()
   , m_blobAspectRatio(-1)
   , m_blobARThreshold(0.03)
   , m_imageQos(1)
-  , m_color("black")
+  , m_color("red")
 {
   initialize();
 }
@@ -178,6 +178,26 @@ void DebugCentroid::processBlob()
         putText(m_colorImage, "R", right,cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
         putText(m_colorImage, "U", up,cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 2);
         putText(m_colorImage, "D", down,cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 2);
+
+        //transform data to be published
+        geometry_msgs::msg::Quaternion quat;
+        quat.x = 0;
+        quat.y = 0;
+        quat.z = 0;
+        quat.w = 1;
+
+        //create and publish tf message
+        geometry_msgs::msg::TransformStamped ts;
+        ts.header = m_imageInfo.header;
+        ts.child_frame_id= std::string("colorblob_" + std::to_string(i));
+        ts.transform.rotation = quat;
+        ts.transform.translation.x = worldX;
+        ts.transform.translation.y = worldY;
+        ts.transform.translation.z = depth;
+        m_tfBroadcasterPtr->sendTransform(ts);
+
+
+        
       }
     }
   }

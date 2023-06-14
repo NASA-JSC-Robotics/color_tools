@@ -10,6 +10,11 @@
 
 #include <color_names/ColorNames.h>
 #include "dex_ivr_interfaces/srv/blob_dimensions.hpp"
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <geometry_msgs/msg/pose_stamped.h>
+#include <geometry_msgs/msg/quaternion.h>
+#include <geometry_msgs/msg/transform_stamped.h>
 
 class DebugCentroid : public rclcpp::Node
 {
@@ -46,4 +51,5 @@ private:
     std::string m_color;
     sensor_msgs::msg::CameraInfo m_imageInfo;
 
+    std::unique_ptr<tf2_ros::TransformBroadcaster> m_tfBroadcasterPtr = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 };
