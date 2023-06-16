@@ -21,6 +21,7 @@ endif()
   find_package(message_filters REQUIRED)
   find_package(ros2_color_names_interfaces REQUIRED)
   find_package(dex_ivr_interfaces REQUIRED)
+  find_package(std_srvs REQUIRED)
   find_package(tf2_ros REQUIRED)
   find_package(tf2 REQUIRED)
   find_package(tf2_geometry_msgs REQUIRED)
@@ -51,6 +52,7 @@ endif()
   color_names
   ros2_color_names_interfaces
   dex_ivr_interfaces
+  std_srvs
   OpenCV)
 
   set(client_dependencies

@@ -189,7 +189,7 @@ void DebugCentroid::processBlob()
         //create and publish tf message
         geometry_msgs::msg::TransformStamped ts;
         ts.header = m_imageInfo.header;
-        ts.child_frame_id= std::string("colorblob_" + std::to_string(i));
+        ts.child_frame_id= std::string("colorblob_xd");
         ts.transform.rotation = quat;
         ts.transform.translation.x = worldX;
         ts.transform.translation.y = worldY;

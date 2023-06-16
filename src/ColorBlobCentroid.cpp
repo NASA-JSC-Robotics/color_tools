@@ -18,6 +18,7 @@ ColorBlobCentroid::ColorBlobCentroid()
   , m_blobARThreshold(0.03)
   , m_imageQos(1)
   , m_color("black")
+  , m_continuousColor(false)
 {
   initialize();
 }
@@ -35,11 +36,12 @@ void ColorBlobCentroid::initialize()
                       cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                       cv::Point( dilation_size, dilation_size ) );
 
-  service_ = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("set_blob_dimensions", std::bind(&ColorBlobCentroid::set_blob_dimensions, this, _1, _2));
+  m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("color_set_blob_dimensions", std::bind(&ColorBlobCentroid::set_blob_dimensions, this, _1, _2));
+  m_processing_srv = this->create_service<std_srvs::srv::SetBool>("color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
 
-  m_depthImageSub.subscribe(this, "gripper/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
-  m_colorImageSub.subscribe(this, "gripper/color/image_raw", m_imageQos.get_rmw_qos_profile());
-  m_colorInfoSub.subscribe(this, "gripper/color/camera_info", m_imageQos.get_rmw_qos_profile());
+  m_depthImageSub.subscribe(this, "camera/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
+  m_colorImageSub.subscribe(this, "camera/color/image_raw", m_imageQos.get_rmw_qos_profile());
+  m_colorInfoSub.subscribe(this, "camera/color/camera_info", m_imageQos.get_rmw_qos_profile());
 
   m_timeSyncPtr = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
                                         sensor_msgs::msg::CameraInfo>>(m_colorImageSub, m_depthImageSub, m_colorInfoSub, 10);
@@ -65,13 +67,19 @@ void ColorBlobCentroid::set_blob_dimensions(const std::shared_ptr<dex_ivr_interf
 
 }
 
+void ColorBlobCentroid::toggle_continuous(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, std::shared_ptr<std_srvs::srv::SetBool::Response> response)
+{
+  m_continuousColor = request->data;
+  response->success = true;
+}
+
 void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                                          const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                                          const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
 {
   m_colorImage = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
   m_depthImage = cv::Mat(cv_bridge::toCvCopy(depthImMsgA)->image);
-  infoMsgA->header.frame_id; //this is just to make the compiler as this is unused but available if necessary
+  m_imageInfo = *infoMsgA;
   if(m_depthImage.type() != CV_32FC1)
   {
       if(m_depthImage.type() == CV_16UC1)
@@ -82,6 +90,11 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
       {
           printf("%s depth image type must be CV_32FC1 or CV_16UC1\n", __FUNCTION__);
       }
+  }
+  if(m_continuousColor)
+  {
+    geometry_msgs::msg::Pose blobPos;
+    processBlob(blobPos); //live processing for debugging
   }
 }
 
@@ -101,7 +114,7 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
   erode(dilated, eroded, m_morphology);
 
   std::vector<std::vector<cv::Point>> contours;
-  std::vector<cv::Vec4i> hierarchy;
+  std::vector<cv::Vec4i> hierarchy; 
 
   findContours(eroded, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
 
@@ -143,8 +156,13 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
             putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
             //Depth image stuff
-            std::string  depthPrint = "depth: " + std::to_string(m_depthImage.at<float>(momentPt)) + ", " + std::to_string(momentPt.x);
+            double depth = m_depthImage.at<float>(momentPt);
+            std::string  depthPrint = "depth: " + std::to_string(depth) + " angle: " + std::to_string(rotRect.angle);
             putText(m_colorImage, depthPrint, cv::Point2f(momentPt.x - 25, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+            double worldX = (momentPt.x-m_imageInfo.k.at(2)) * (depth/m_imageInfo.k.at(0)); // (x' - cx) * (depth/focal length x) --- where x' is image x in pixels and cx is center of image x from camera image
+            double worldY = (momentPt.y-m_imageInfo.k.at(5)) * (depth/m_imageInfo.k.at(4)); // (y' - cy) * (depth/focal length y) --- where y' is image y in pixels and cy is center of image y from camera image
+            std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
+            putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 25, momentPt.y + 35),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
 
             //set output for service call
             blobPos.position.x = momentPt.x;
@@ -156,8 +174,27 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
             blobPos.orientation.y = q.y();
             blobPos.orientation.z = q.z();
             blobPos.orientation.w = q.w();
-            std::string output = "Object found at " + std::to_string(blobPos.position.x) + ", " + std::to_string(blobPos.position.y) + ", " + std::to_string(blobPos.position.z) + ", " + " angled: " + std::to_string(rotRect.angle) + "\n";
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
+            std::string output = "Object found at " + std::to_string(worldX) + ", " + std::to_string(worldY) + ", " + std::to_string(blobPos.position.z) + ", " + " angled: " + std::to_string(rotRect.angle) + "\n";
+            
+            if(!m_continuousColor) //dont clutter output terminal
+              RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
+
+            //transform data to be published
+            geometry_msgs::msg::Quaternion quat;
+            quat.x = 0;
+            quat.y = 0;
+            quat.z = 0;
+            quat.w = 1;
+
+            //create and publish tf message
+            geometry_msgs::msg::TransformStamped ts;
+            ts.header = m_imageInfo.header;
+            ts.child_frame_id= std::string("colorblob_xd");
+            ts.transform.rotation = quat;
+            ts.transform.translation.x = worldX;
+            ts.transform.translation.y = worldY;
+            ts.transform.translation.z = depth;
+            m_tfBroadcasterPtr->sendTransform(ts);
           }
         }
       }
