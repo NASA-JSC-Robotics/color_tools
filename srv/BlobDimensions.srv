@@ -3,5 +3,6 @@ float64 aspect_ratio_threshold  # Threshold +/- the given aspect ratio to still 
 float64 size                    # expected blob length size to filter out similar aspect ratio noise blobs
 float64 size_threshold          # Threshold +/- the given size to still look for object
 string color                    # color of the mask to use
+string prefix                   # prefix for image topics names
 ---
 geometry_msgs/Pose centroid_pose 
