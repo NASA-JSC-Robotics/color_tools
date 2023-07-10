@@ -101,7 +101,6 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
       }
   }
 
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Continuous output set to %d", m_continuousColor);
   if(m_continuousColor)
   {
     geometry_msgs::msg::Pose blobPos;
