@@ -126,7 +126,7 @@ void DebugCentroid::processBlob()
 
     // if aspect ratio is set to something specific for testing, only process those nodes
     bool processContour = false;
-    if (m_blobAspectRatio == -1 &&  m_blobSize == -1 )
+    if ((m_blobAspectRatio == -1 &&  m_blobSize == -1 ) || (m_blobAspectRatio == 0 &&  m_blobSize == 0 ))
     {
       //eliminate noisey shadows
       if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE)
