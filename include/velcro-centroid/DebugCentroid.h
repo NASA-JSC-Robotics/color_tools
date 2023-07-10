@@ -35,6 +35,7 @@ private:
     double m_blobSizeThreshold;
     double m_blobAspectRatio;
     double m_blobARThreshold;
+    std::string m_prefix;
     rclcpp::QoS m_imageQos;
     rclcpp::Service<dex_ivr_interfaces::srv::BlobDimensions>::SharedPtr service_;
 

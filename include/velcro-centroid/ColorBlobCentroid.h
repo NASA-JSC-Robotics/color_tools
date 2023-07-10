@@ -28,7 +28,7 @@ public:
 
 private:
     void initialize();
-    void set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
+    void color_set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
       std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response>      response);
     void toggle_continuous(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, std::shared_ptr<std_srvs::srv::SetBool::Response> response);
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
@@ -40,6 +40,7 @@ private:
     double m_blobSizeThreshold;
     double m_blobAspectRatio;
     double m_blobARThreshold;
+    std::string m_prefix;
     rclcpp::QoS m_imageQos;
     rclcpp::Service<dex_ivr_interfaces::srv::BlobDimensions>::SharedPtr m_color_srv; //configures the parameters of the color blob detection: aspect ratio, size, color
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr m_processing_srv; //turn on/off continuous image processing

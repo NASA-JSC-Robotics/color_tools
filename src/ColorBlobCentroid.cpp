@@ -36,7 +36,7 @@ void ColorBlobCentroid::initialize()
                       cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                       cv::Point( dilation_size, dilation_size ) );
 
-  m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("color_set_blob_dimensions", std::bind(&ColorBlobCentroid::set_blob_dimensions, this, _1, _2));
+  m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("color_set_blob_dimensions", std::bind(&ColorBlobCentroid::color_set_blob_dimensions, this, _1, _2));
   m_processing_srv = this->create_service<std_srvs::srv::SetBool>("color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
 
   m_depthImageSub.subscribe(this, "camera/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
@@ -50,7 +50,7 @@ void ColorBlobCentroid::initialize()
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
 }
 
-void ColorBlobCentroid::set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
+void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
           std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response>      response)
 {
   std::string req = "Incoming Request - Aspect Ratio: " + std::to_string(request->aspect_ratio) + " Size: " + std::to_string(request->size);
@@ -60,6 +60,14 @@ void ColorBlobCentroid::set_blob_dimensions(const std::shared_ptr<dex_ivr_interf
   m_blobSize = request->size;
   m_blobSizeThreshold = request->size_threshold;
   m_color = request->color;
+  m_prefix = request->prefix;
+
+  m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
+  m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
+  m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/color/camera_info", m_imageQos.get_rmw_qos_profile());
+
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "request color -> %s", request->color.c_str());
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "image prefix -> %s", request->prefix.c_str());
 
   geometry_msgs::msg::Pose blobPos;
   processBlob(blobPos);
@@ -69,6 +77,7 @@ void ColorBlobCentroid::set_blob_dimensions(const std::shared_ptr<dex_ivr_interf
 
 void ColorBlobCentroid::toggle_continuous(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, std::shared_ptr<std_srvs::srv::SetBool::Response> response)
 {
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Continuous output set to %d", request->data);
   m_continuousColor = request->data;
   response->success = true;
 }
@@ -91,6 +100,8 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
           printf("%s depth image type must be CV_32FC1 or CV_16UC1\n", __FUNCTION__);
       }
   }
+
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Continuous output set to %d", m_continuousColor);
   if(m_continuousColor)
   {
     geometry_msgs::msg::Pose blobPos;
@@ -203,10 +214,10 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
   // cv::imshow("colornames", m_mask);
   // cv::imshow("dilate -> eroded", eroded);
   // cv::imshow("depth image", m_depthImage);
-  // cv::waitKey(1);
+  // cv::waitKey(0);
 
-  // cv::imshow("final result", m_colorImage);
-  // cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
+  //  cv::imshow("final result", m_colorImage);
+  // cv::waitKey(0); //set to 1 for coninuous output, set to 0 for single frame forever
 
 }
 

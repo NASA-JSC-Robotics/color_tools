@@ -28,6 +28,11 @@ void DebugCentroid::initialize()
     m_imageQos.reliable();
     m_imageQos.durability_volatile();
 
+    this->declare_parameter("prefix", "wrist_mounted_camera");
+    m_prefix = this->get_parameter("prefix").as_string();
+
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "image topic prefix: %s", m_prefix.c_str());
+
     float dilation_size=1.0;
     m_morphology = getStructuringElement( cv::MORPH_RECT,
                         cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
@@ -35,9 +40,9 @@ void DebugCentroid::initialize()
 
     service_ = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("set_blob_dimensions", std::bind(&DebugCentroid::set_blob_dimensions, this, _1, _2));
 
-    m_depthImageSub.subscribe(this, "/camera/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
-    m_colorImageSub.subscribe(this, "/camera/color/image_raw", m_imageQos.get_rmw_qos_profile());
-    m_colorInfoSub.subscribe(this, "/camera/color/camera_info", m_imageQos.get_rmw_qos_profile());
+    m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
+    m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
+    m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/color/camera_info", m_imageQos.get_rmw_qos_profile());
 
     m_timeSyncPtr = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
                                         sensor_msgs::msg::CameraInfo>>(m_colorImageSub, m_depthImageSub, m_colorInfoSub, 10);
@@ -56,7 +61,14 @@ void DebugCentroid::set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces
     m_blobSize = request->size;
     m_blobSizeThreshold = request->size_threshold;
     m_color = request->color;
+    m_prefix = request->prefix;
+
+    m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
+    m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
+    m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/color/camera_info", m_imageQos.get_rmw_qos_profile());
+
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "request color -> %s", request->color.c_str());
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "image prefix -> %s", request->prefix.c_str());
 
     response->centroid_pose.position.x = -1; response->centroid_pose.position.y = -1; response->centroid_pose.position.z = -1;
 }
