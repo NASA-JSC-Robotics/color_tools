@@ -1,5 +1,5 @@
 #include "velcro-centroid/ColorBlobCentroid.h"
-#define MIN_OBJECT_SIZE 25
+#define MIN_OBJECT_SIZE 18
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -31,6 +31,11 @@ void ColorBlobCentroid::initialize()
   m_imageQos.reliable();
   m_imageQos.durability_volatile();
 
+  this->declare_parameter("prefix", "wrist_mounted_camera");
+  m_prefix = this->get_parameter("prefix").as_string();
+
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "image topic prefix: %s", m_prefix.c_str());
+
   float dilation_size=1.0;
   m_morphology = getStructuringElement( cv::MORPH_RECT,
                       cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
@@ -39,9 +44,9 @@ void ColorBlobCentroid::initialize()
   m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("color_set_blob_dimensions", std::bind(&ColorBlobCentroid::color_set_blob_dimensions, this, _1, _2));
   m_processing_srv = this->create_service<std_srvs::srv::SetBool>("color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
 
-  m_depthImageSub.subscribe(this, "camera/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
-  m_colorImageSub.subscribe(this, "camera/color/image_raw", m_imageQos.get_rmw_qos_profile());
-  m_colorInfoSub.subscribe(this, "camera/color/camera_info", m_imageQos.get_rmw_qos_profile());
+  m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
+  m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
+  m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/color/camera_info", m_imageQos.get_rmw_qos_profile());
 
   m_timeSyncPtr = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
                                         sensor_msgs::msg::CameraInfo>>(m_colorImageSub, m_depthImageSub, m_colorInfoSub, 10);
@@ -142,71 +147,82 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
     else
       angle = -angle;
 
-    // if rotated rectangle aspect ratio is < desired aspect ratio, and the height is above service specified threshold
-    if (m_blobAspectRatio != -1 && m_blobSize != -1)
+    // if aspect ratio is set to something specific for testing, only process those nodes
+    bool processContour = false;
+    if ((m_blobAspectRatio == -1 &&  m_blobSize == -1 ) || (m_blobAspectRatio == 0 &&  m_blobSize == 0 ))
     {
-      // if aspect ratio is within threshold of what is expected.
-      if ((width / height) < (m_blobAspectRatio + m_blobARThreshold/2) &&  (width / height) > (m_blobAspectRatio - m_blobARThreshold/2))
+      //eliminate noisey shadows
+      if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE)
+          processContour = true;
+    }
+    // if aspect ratio exists and is within threshold of what is expected.
+    if (m_blobAspectRatio != -1 && (width / height) < (m_blobAspectRatio + m_blobARThreshold/2) &&  (width / height) > (m_blobAspectRatio - m_blobARThreshold/2))
+    {
+      // if size exists and meets min size requirement (close enough that it is not considered random noise)
+      if(m_blobSize != -1 && height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE && height > (m_blobSize-m_blobSizeThreshold) && height < (m_blobSize + m_blobSizeThreshold))
       {
-        // if object meets min size requirement (close enough that it is not considered random noise)
-        if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE && height > (m_blobSize-m_blobSizeThreshold) && height < (m_blobSize + m_blobSizeThreshold))
-        {   
+          processContour = true;
+      }
+    }
 
-          // calculate x,y coordinate of centroid
-          cv::Moments moment = moments(contours[i]);
-          cv::Point2f momentPt;
-          if (moment.m00 != 0)
-          { 
 
-            momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
+    // default behavior (Aspect/Size == -1) is to process all contours that appear
+    if (processContour)
+    {
+      // calculate x,y coordinate of centroid
+      cv::Moments moment = moments(contours[i]);
+      cv::Point2f momentPt;
+      if (moment.m00 != 0)
+      { 
 
-            circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
-            std::string boxAR = "AR: " + std::to_string((width / height));
-            std::string boxSize = "size: " + std::to_string(width) + " " + std::to_string(height) + " angle: " + std::to_string(angle);
-            putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-            putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-            //Depth image stuff
-            double depth = m_depthImage.at<float>(momentPt);
-            std::string  depthPrint = "depth: " + std::to_string(depth) + " angle: " + std::to_string(rotRect.angle);
-            putText(m_colorImage, depthPrint, cv::Point2f(momentPt.x - 25, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-            double worldX = (momentPt.x-m_imageInfo.k.at(2)) * (depth/m_imageInfo.k.at(0)); // (x' - cx) * (depth/focal length x) --- where x' is image x in pixels and cx is center of image x from camera image
-            double worldY = (momentPt.y-m_imageInfo.k.at(5)) * (depth/m_imageInfo.k.at(4)); // (y' - cy) * (depth/focal length y) --- where y' is image y in pixels and cy is center of image y from camera image
-            std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
-            putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 25, momentPt.y + 35),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
 
-            //set output for service call
-            blobPos.position.x = momentPt.x;
-            blobPos.position.y = momentPt.y;
-            blobPos.position.z = m_depthImage.at<float>(momentPt);
-            tf2::Quaternion q;
-            q.setRPY(rotRect.angle, 0, 0);
-            blobPos.orientation.x = q.x();
-            blobPos.orientation.y = q.y();
-            blobPos.orientation.z = q.z();
-            blobPos.orientation.w = q.w();
-            std::string output = "Object found at " + std::to_string(worldX) + ", " + std::to_string(worldY) + ", " + std::to_string(blobPos.position.z) + ", " + " angled: " + std::to_string(rotRect.angle) + "\n";
-            
-            if(!m_continuousColor) //dont clutter output terminal
-              RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
+        circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
+        std::string boxAR = "AR: " + std::to_string((width / height));
+        std::string boxSize = "size: " + std::to_string(width) + " " + std::to_string(height) + " angle: " + std::to_string(angle);
+        putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        //Depth image stuff
+        double depth = m_depthImage.at<float>(momentPt);
+        std::string  depthPrint = "depth: " + std::to_string(depth) + " angle: " + std::to_string(rotRect.angle);
+        putText(m_colorImage, depthPrint, cv::Point2f(momentPt.x - 25, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        double worldX = (momentPt.x-m_imageInfo.k.at(2)) * (depth/m_imageInfo.k.at(0)); // (x' - cx) * (depth/focal length x) --- where x' is image x in pixels and cx is center of image x from camera image
+        double worldY = (momentPt.y-m_imageInfo.k.at(5)) * (depth/m_imageInfo.k.at(4)); // (y' - cy) * (depth/focal length y) --- where y' is image y in pixels and cy is center of image y from camera image
+        std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
+        putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 25, momentPt.y + 35),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
 
-            //transform data to be published
-            geometry_msgs::msg::Quaternion quat;
-            quat.x = 0;
-            quat.y = 0;
-            quat.z = 0;
-            quat.w = 1;
+        tf2::Quaternion q;
+        q.setRPY(rotRect.angle, 0, 0);
+        blobPos.orientation.x = q.x();
+        blobPos.orientation.y = q.y();
+        blobPos.orientation.z = q.z();
+        blobPos.orientation.w = q.w();
+        std::string output = "Object found at " + std::to_string(worldX) + ", " + std::to_string(worldY) + ", " + std::to_string(blobPos.position.z) + ", " + " angled: " + std::to_string(rotRect.angle) + "\n";
+        
+        if(!m_continuousColor) //dont clutter output terminal
+          RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
 
-            //create and publish tf message
-            geometry_msgs::msg::TransformStamped ts;
-            ts.header = m_imageInfo.header;
-            ts.child_frame_id= std::string("colorblob_xd");
-            ts.transform.rotation = quat;
-            ts.transform.translation.x = worldX;
-            ts.transform.translation.y = worldY;
-            ts.transform.translation.z = depth;
-            m_tfBroadcasterPtr->sendTransform(ts);
-          }
-        }
+        //transform data to be published
+        geometry_msgs::msg::Quaternion quat;
+        quat.x = 0;
+        quat.y = 0;
+        quat.z = 0;
+        quat.w = 1;
+
+        //create and publish tf message
+        geometry_msgs::msg::TransformStamped ts;
+        ts.header = m_imageInfo.header;
+        ts.child_frame_id= std::string("colorblob_xd");
+        ts.transform.rotation = quat;
+        ts.transform.translation.x = worldX;
+        ts.transform.translation.y = worldY;
+        ts.transform.translation.z = depth;
+        m_tfBroadcasterPtr->sendTransform(ts);
+
+        //set output for service call
+        blobPos.position.x = worldX;
+        blobPos.position.y = worldY;
+        blobPos.position.z = depth;
       }
     }
   }
@@ -215,7 +231,7 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
   // cv::imshow("depth image", m_depthImage);
   // cv::waitKey(0);
 
-  //  cv::imshow("final result", m_colorImage);
+  // cv::imshow("final result", m_colorImage);
   // cv::waitKey(0); //set to 1 for coninuous output, set to 0 for single frame forever
 
 }

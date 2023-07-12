@@ -24,7 +24,7 @@ public:
 
 private:
     void initialize();
-    void set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
+    void color_set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
       std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response>      response);
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,

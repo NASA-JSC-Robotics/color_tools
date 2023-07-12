@@ -38,7 +38,7 @@ void DebugCentroid::initialize()
                         cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                         cv::Point( dilation_size, dilation_size ) );
 
-    service_ = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("set_blob_dimensions", std::bind(&DebugCentroid::set_blob_dimensions, this, _1, _2));
+    service_ = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("color_set_blob_dimensions", std::bind(&DebugCentroid::color_set_blob_dimensions, this, _1, _2));
 
     m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
     m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
@@ -51,7 +51,7 @@ void DebugCentroid::initialize()
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Outputting images and centroid information.\nSet aspect ratio & size to -1 to output all blobs in the specified color");
 }
 
-void DebugCentroid::set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
+void DebugCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
           std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response>      response)
 {
     std::string test = "Incoming Request - Aspect Ratio: " + std::to_string(request->aspect_ratio) + " Size: " + std::to_string(request->size);
@@ -207,9 +207,6 @@ void DebugCentroid::processBlob()
         ts.transform.translation.y = worldY;
         ts.transform.translation.z = depth;
         m_tfBroadcasterPtr->sendTransform(ts);
-
-
-        
       }
     }
   }
