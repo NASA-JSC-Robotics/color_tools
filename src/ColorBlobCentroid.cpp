@@ -17,7 +17,7 @@ ColorBlobCentroid::ColorBlobCentroid()
   , m_blobAspectRatio(-1)
   , m_blobARThreshold(0.03)
   , m_imageQos(1)
-  , m_color("black")
+  , m_color("red")
   , m_continuousColor(false)
 {
   initialize();
@@ -34,7 +34,7 @@ void ColorBlobCentroid::initialize()
   this->declare_parameter("prefix", "wrist_mounted_camera");
   m_prefix = this->get_parameter("prefix").as_string();
 
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "image topic prefix: %s", m_prefix.c_str());
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "image topic prefix: %s \nColor blob: %s", m_prefix.c_str(), m_color.c_str());
 
   float dilation_size=1.0;
   m_morphology = getStructuringElement( cv::MORPH_RECT,
@@ -64,8 +64,10 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
   m_blobARThreshold = request->aspect_ratio_threshold;
   m_blobSize = request->size;
   m_blobSizeThreshold = request->size_threshold;
-  m_color = request->color;
-  m_prefix = request->prefix;
+  if (request->color != "")
+    m_color = request->color;
+  if (request->prefix != "")
+    m_prefix = request->prefix;
 
   m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
   m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
@@ -191,6 +193,10 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
         std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
         putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 25, momentPt.y + 35),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
 
+        //set output for service call
+        blobPos.position.x = worldX;
+        blobPos.position.y = worldY;
+        blobPos.position.z = depth;
         tf2::Quaternion q;
         q.setRPY(rotRect.angle, 0, 0);
         blobPos.orientation.x = q.x();
@@ -218,11 +224,6 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
         ts.transform.translation.y = worldY;
         ts.transform.translation.z = depth;
         m_tfBroadcasterPtr->sendTransform(ts);
-
-        //set output for service call
-        blobPos.position.x = worldX;
-        blobPos.position.y = worldY;
-        blobPos.position.z = depth;
       }
     }
   }
