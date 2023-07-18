@@ -147,6 +147,8 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
     angle = rotRect.angle;
     if (rotRect.size.height > rotRect.size.width)
       angle -= 90;
+    if (angle < 0)
+      angle+=180; //prevents 180 degreees inversion of gripper for rotation
 
     // if aspect ratio is set to something specific for testing, only process those nodes
     bool processContour = false;
