@@ -144,10 +144,9 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
     double height = std::max(rotRect.size.height,rotRect.size.width);
     double width = std::min(rotRect.size.height,rotRect.size.width);
     double angle;
-    if(rotRect.size.width < rotRect.size.height)
-      angle = rotRect.angle;
-    else
-      angle = -angle;
+    angle = rotRect.angle;
+    if (rotRect.size.height > rotRect.size.width)
+      angle -= 90;
 
     // if aspect ratio is set to something specific for testing, only process those nodes
     bool processContour = false;
@@ -193,27 +192,27 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
         std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
         putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 25, momentPt.y + 35),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
 
+        //rotate frame according to long axis -- 90 degrees offset to make  the "vertical long axis" the 0-degree rotation. the gripper opens horizonally, should not need to rotate when object is vertically oriented as thats the correct orientation for grasp.
+        tf2::Quaternion longAxis;
+        longAxis.setRPY(0,0,((angle-90)*CV_PI/180));
+        longAxis.normalize();
+
+        //transform data to be published
+        geometry_msgs::msg::Quaternion quat;
+        quat = tf2::toMsg(longAxis);
+
         //set output for service call
         blobPos.position.x = worldX;
         blobPos.position.y = worldY;
         blobPos.position.z = depth;
-        tf2::Quaternion q;
-        q.setRPY(rotRect.angle, 0, 0);
-        blobPos.orientation.x = q.x();
-        blobPos.orientation.y = q.y();
-        blobPos.orientation.z = q.z();
-        blobPos.orientation.w = q.w();
-        std::string output = "Object found at " + std::to_string(worldX) + ", " + std::to_string(worldY) + ", " + std::to_string(blobPos.position.z) + ", " + " angled: " + std::to_string(rotRect.angle) + "\n";
+        blobPos.orientation.x = longAxis.x();
+        blobPos.orientation.y = longAxis.y();
+        blobPos.orientation.z = longAxis.z();
+        blobPos.orientation.w = longAxis.w();
+        std::string output = "Object found at " + std::to_string(worldX) + ", " + std::to_string(worldY) + ", " + std::to_string(blobPos.position.z) + ", " + " angled (in degrees): " + std::to_string(angle) + "\n";
         
         if(!m_continuousColor) //dont clutter output terminal
           RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
-
-        //transform data to be published
-        geometry_msgs::msg::Quaternion quat;
-        quat.x = 0;
-        quat.y = 0;
-        quat.z = 0;
-        quat.w = 1;
 
         //create and publish tf message
         geometry_msgs::msg::TransformStamped ts;
