@@ -162,7 +162,7 @@ void DebugCentroid::processBlob()
     double angle;
     angle = rotRect.angle;
     if (rotRect.size.height > rotRect.size.width)
-      angle += 90;
+      angle -= 90;
 
     // if aspect ratio is set to something specific for testing, only process those nodes
     bool processContour = false;
@@ -250,12 +250,14 @@ void DebugCentroid::processBlob()
         putText(m_colorImage, "U", up,cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 2);
         putText(m_colorImage, "D", down,cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 2);
 
+        //rotate frame according to long axis -- 90 degrees offset to make  the "vertical long axis" the 0-degree rotation. the gripper opens horizonally, should not need to rotate when object is vertically oriented as thats the correct orientation for grasp.
+        tf2::Quaternion longAxis;
+        longAxis.setRPY(0,0,((angle-90)*CV_PI/180));
+        longAxis.normalize();
+
         //transform data to be published
         geometry_msgs::msg::Quaternion quat;
-        quat.x = 0;
-        quat.y = 0;
-        quat.z = 0;
-        quat.w = 1;
+        quat = tf2::toMsg(longAxis);
 
         //create and publish tf message
         geometry_msgs::msg::TransformStamped ts;
