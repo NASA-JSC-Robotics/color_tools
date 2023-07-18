@@ -3,6 +3,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include "opencv2/highgui.hpp"
+#include <opencv2/imgproc/imgproc.hpp>
 #include "rclcpp/logging.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
@@ -24,6 +25,7 @@ public:
 
 private:
     void initialize();
+    static void mouseCallback(int event, int x, int y, int flags, void* userdata);
     void color_set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
       std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response>      response);
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,

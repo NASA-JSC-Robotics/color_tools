@@ -48,7 +48,40 @@ void DebugCentroid::initialize()
                                         sensor_msgs::msg::CameraInfo>>(m_colorImageSub, m_depthImageSub, m_colorInfoSub, 10);
     m_timeSyncPtr->registerCallback(std::bind(&DebugCentroid::imageCallback, this, std::placeholders::_1,
                                         std::placeholders::_2, std::placeholders::_3));
+    cv::namedWindow("final result");//declaring window to show image//
+    cv::setMouseCallback("final result", DebugCentroid::mouseCallback, this);
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Outputting images and centroid information.\nSet aspect ratio & size to -1 to output all blobs in the specified color");
+}
+
+void DebugCentroid::mouseCallback(int event, int x, int y, int flags, void* userdata)
+{
+        auto font = cv::FONT_HERSHEY_SIMPLEX;
+
+        // circle(m_colorImage, cv::Point2f(x,y), 5, cv::Scalar(255, 255, 255), -1);
+        // cv::circle(m_colorImage,(x,y), 5, (255, 255, 0), -1);
+        // cv::putText(img, "A", (x-8,y-10), font,
+        //             0.7, (255, 255, 0), 2);
+
+        // if(m_boxMade)
+        // {
+        //     cv::circle(m_colorImage,(x,y), 5, (255, 255, 0), -1)
+        //     cv::putText(img, "A", (x-8,y-10), font,
+        //                 0.7, (255, 255, 0), 2)
+            
+        //     lastPt = (x,y)
+        //     m_boxMade = !m_boxMade
+        // }
+        // else:
+        //     cv2.circle(img,(x,y), 5, (0, 255, 0), -1)
+        //     cv2.putText(img, "B", (x-8,y-10), font,
+        //                 0.7, (0, 255, 0), 2)
+        //     cv2.line(img, (x,y), (lastPt[0],y), (255,255,255), 2)
+        //     cv2.line(img, (lastPt[0],y), (lastPt[0],lastPt[1]), (255,255,255), 2)
+        //     cv2.line(img, (x,y), (x,lastPt[1]), (255,255,255), 2)
+        //     cv2.line(img, (x,lastPt[1]), (lastPt[0],lastPt[1]), (255,255,255), 2)
+        //     lastPt = (x,y)
+        //     m_boxMade = !m_boxMade
+     
 }
 
 void DebugCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
@@ -101,7 +134,7 @@ void DebugCentroid::processBlob()
   m_mask = 0;
   m_colorNames.createColorMask(m_colorImage, m_color, m_mask);
 
-  cv::Mat dilated, eroded;
+  cv::Mat dilated, eroded, rotImg;
 
   //erode first to delete smol noise outside obect of interest, dilate to restore object of interest to proper size
   erode(m_mask, eroded, m_morphology);
@@ -114,15 +147,22 @@ void DebugCentroid::processBlob()
   std::vector<std::vector<cv::Point>> contours;
   std::vector<cv::Vec4i> hierarchy;
 
+  m_colorImage.copyTo(rotImg);
+
   findContours(eroded, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
 
   for (size_t i =0; i < contours.size(); i++)
   {
     //Get rotated-rectangle boundary fit of blob from the generated image mask
     cv::RotatedRect rotRect = minAreaRect(contours[i]);
+
     //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of blob"
     double height = std::max(rotRect.size.height,rotRect.size.width);
     double width = std::min(rotRect.size.height,rotRect.size.width);
+    double angle;
+    angle = rotRect.angle;
+    if (rotRect.size.height > rotRect.size.width)
+      angle += 90;
 
     // if aspect ratio is set to something specific for testing, only process those nodes
     bool processContour = false;
@@ -155,7 +195,7 @@ void DebugCentroid::processBlob()
 
         circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
         std::string boxAR = "AR: " + std::to_string((width / height));
-        std::string boxSize = "width: " + std::to_string(width) + " height: " + std::to_string(height);
+        std::string boxSize = "size: " + std::to_string(width) + " " + std::to_string(height) + " angle: " + std::to_string(angle);
         putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
         putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 25, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
         //Depth image stuff
@@ -185,6 +225,25 @@ void DebugCentroid::processBlob()
                 return lhs.y  > rhs.y;
         });
 
+        //angle - major/minor axis computation ------------------------ ANGLE -----------------------------
+        cv::Point2f vertices[4];
+        rotRect.points(vertices);
+        for (int i = 0; i < 4; i++)
+            line(rotImg, vertices[i], vertices[(i+1)%4], cv::Scalar(0,255,0), 2);
+        cv::Rect brect = rotRect.boundingRect();
+        rectangle(rotImg, brect, cv::Scalar(255,0,0), 2);
+
+        // major line
+        cv::Point2f majorA1 (momentPt.x + cos(angle*CV_PI/180)*(height/2),momentPt.y + sin(angle*CV_PI/180)*(height/2));
+        cv::Point2f majorA2 (momentPt.x - cos(angle*CV_PI/180)*(height/2),momentPt.y - sin(angle*CV_PI/180)*(height/2));
+        cv::line(rotImg,momentPt,majorA1, cv::Scalar(255, 0, 255), 2);
+        cv::line(rotImg,momentPt,majorA2, cv::Scalar(255, 0, 255), 2);
+
+        std::string rotSize = "rect w:" + std::to_string(rotRect.size.width) + " rect h:" + std::to_string(rotRect.size.height) + " angle: " + std::to_string(angle);
+        std::string compSize = " w:" + std::to_string(width) + " h:" + std::to_string(height); 
+        putText(rotImg, rotSize, cv::Point2f(momentPt.x - 40, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        putText(rotImg, compSize, cv::Point2f(momentPt.x - 40, momentPt.y + 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 215, 215), 2);
+        // ------------------------------------------------------------
 
         putText(m_colorImage, "L", left,cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 255), 2);
         putText(m_colorImage, "R", right,cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
@@ -212,7 +271,7 @@ void DebugCentroid::processBlob()
   }
 
   cv::imshow("colornames", m_mask);
-  cv::imshow("dilate -> eroded", eroded);
+  cv::imshow("rotation", rotImg);
   cv::imshow("depth image", m_depthImage);
   cv::imshow("final result", m_colorImage);
   cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
