@@ -9,7 +9,20 @@ import os
 
 
 def generate_launch_description():
-    nodes_to_launch = []
+
+    declared_arguments = []
+
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "prefix",
+            default_value="wrist_mounted_camera",
+            description="prefix of image topic you are listening to.\
+                        (i.e. realsense camera_name parameter when launching realsense)",
+        )
+    )
+
+    prefix = LaunchConfiguration("prefix")
+
     colorblob_node = Node(
         package="color_blob_centroid",
         executable="ColorBlobCentroid",
@@ -17,10 +30,13 @@ def generate_launch_description():
         output="screen",
         parameters=[
             {
-                "prefix":"wrist_mounted_camera", #prefix of whatever realsense image topic you are listening to (i.e. realsense camera_name parameter when launching realsense)
+                "prefix":prefix,
             }
         ],
     )
-    nodes_to_launch.append(colorblob_node)
 
-    return LaunchDescription(nodes_to_launch)
+    nodes_to_launch = [
+        colorblob_node
+    ]
+
+    return LaunchDescription(declared_arguments + nodes_to_launch)
