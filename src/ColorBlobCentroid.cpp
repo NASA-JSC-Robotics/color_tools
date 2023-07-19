@@ -1,4 +1,4 @@
-#include "velcro-centroid/ColorBlobCentroid.h"
+#include "color_blob_centroid/ColorBlobCentroid.h"
 #define MIN_OBJECT_SIZE 18
 
 using std::placeholders::_1;

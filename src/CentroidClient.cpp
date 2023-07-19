@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     geometry_msgs::msg::TransformStamped t;
     t.header.stamp = node->get_clock()->now();
     t.header.frame_id = "world";
-    t.child_frame_id = "velcro_centroid";
+    t.child_frame_id = "color_blob_centroid";
     t.transform.translation.x = result.get()->centroid_pose.position.x;
     t.transform.translation.y = result.get()->centroid_pose.position.y;
     t.transform.translation.z = result.get()->centroid_pose.position.z;
