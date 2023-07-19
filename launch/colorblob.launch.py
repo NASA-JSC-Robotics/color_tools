@@ -21,7 +21,16 @@ def generate_launch_description():
         )
     )
 
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "mock_hardware",
+            default_value='false',
+            description="Simulate camera information instead of bringing up actual cameras",
+        )
+    )
+
     prefix = LaunchConfiguration("prefix")
+    mock_hw = LaunchConfiguration("mock_hardware")
 
     colorblob_node = Node(
         package="color_blob_centroid",
@@ -31,6 +40,7 @@ def generate_launch_description():
         parameters=[
             {
                 "prefix":prefix,
+                "mock_hardware":mock_hw,
             }
         ],
     )
