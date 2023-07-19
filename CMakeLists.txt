@@ -83,12 +83,17 @@ endif()
   add_executable(CentroidClient src/CentroidClient.cpp)
   ament_target_dependencies(CentroidClient ${client_dependencies})
 
-install(TARGETS
-  ${PROJECT_NAME}
-  ColorBlobCentroid
-  CentroidClient
-  DebugCentroid
-  DESTINATION lib/${PROJECT_NAME}/)
+  install(TARGETS
+    ${PROJECT_NAME}
+    ColorBlobCentroid
+    CentroidClient
+    DebugCentroid
+    DESTINATION lib/${PROJECT_NAME}/
+    )
+
+  install(DIRECTORY
+    launch
+    DESTINATION share/${PROJECT_NAME}/)
 
   if(BUILD_TESTING)
     find_package(ament_lint_auto REQUIRED)
