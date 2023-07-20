@@ -5,4 +5,4 @@ float64 size_threshold          # Threshold +/- the given size to still look for
 string color                    # color of the mask to use
 string prefix                   # prefix for image topics names
 ---
-geometry_msgs/Pose centroid_pose 
+geometry_msgs/PoseStamped centroid_pose 
