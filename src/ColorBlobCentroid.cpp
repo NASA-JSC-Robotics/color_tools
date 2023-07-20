@@ -68,33 +68,35 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
                      + "\n Size: " + std::to_string(request->size) + "\n Size Thresh: " + std::to_string(request->size_threshold)
                      + "\n Color: " + request->color.c_str() + "\n Image prefix: " + request->prefix.c_str();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), req.c_str());
-  geometry_msgs::msg::Pose blobPos;
+  geometry_msgs::msg::PoseStamped blobPos;
 
   if(m_mockHardware) //mock hardware means no image processing, just outputting a dummy value.
   {
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "!!!!! MOCK HARDWARE ENABLED - outputting fake response. !!!!!");
-    blobPos.position.x = 0;
-    blobPos.position.y = 0;
-    blobPos.position.z = 0.5;
-    blobPos.orientation.x = 0;
-    blobPos.orientation.y = 0;
-    blobPos.orientation.z = 0;
-    blobPos.orientation.w = 1;
+    rclcpp::Time now = this->get_clock()->now();
+    blobPos.header.frame_id = std::string(m_prefix + "_color_optical_frame");
+    blobPos.header.stamp = now;
+    blobPos.pose.position.x = 0;
+    blobPos.pose.position.y = 0;
+    blobPos.pose.position.z = 0.5;
+    blobPos.pose.orientation.x = 0;
+    blobPos.pose.orientation.y = 0;
+    blobPos.pose.orientation.z = 0;
+    blobPos.pose.orientation.w = 1;
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "MSG -> x:0 y:0 z:0.5 --- qx:0 qy:0 qz:0 qw:1 \n\n");
 
     //create and publish tf message
     geometry_msgs::msg::TransformStamped ts;
     ts.header.frame_id = std::string(m_prefix + "_color_optical_frame");
-    rclcpp::Time now = this->get_clock()->now();
     ts.header.stamp = now;
     ts.child_frame_id= std::string("colorblob_xd");
-    ts.transform.rotation.x = blobPos.orientation.x;
-    ts.transform.rotation.y = blobPos.orientation.y;
-    ts.transform.rotation.z = blobPos.orientation.z;
-    ts.transform.rotation.w = blobPos.orientation.w;
-    ts.transform.translation.x = blobPos.position.x;
-    ts.transform.translation.y = blobPos.position.y;
-    ts.transform.translation.z = blobPos.position.z;
+    ts.transform.rotation.y = blobPos.pose.orientation.y;
+    ts.transform.rotation.z = blobPos.pose.orientation.z;
+    ts.transform.rotation.w = blobPos.pose.orientation.w;
+    ts.transform.rotation.x = blobPos.pose.orientation.x;
+    ts.transform.translation.x = blobPos.pose.position.x;
+    ts.transform.translation.y = blobPos.pose.position.y;
+    ts.transform.translation.z = blobPos.pose.position.z;
     m_tfBroadcasterPtr->sendTransform(ts);
   }
   else //only perform image processing and configurables if not in mock hardware
@@ -148,12 +150,12 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
 
   if(m_continuousColor)
   {
-    geometry_msgs::msg::Pose blobPos;
+    geometry_msgs::msg::PoseStamped blobPos;
     processBlob(blobPos); //live processing for debugging
   }
 }
 
-void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
+void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
 {
   m_mask = 0;
   m_colorNames.createColorMask(m_colorImage, m_color, m_mask);
@@ -241,14 +243,17 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
         geometry_msgs::msg::Quaternion quat;
         quat = tf2::toMsg(longAxis);
 
+        rclcpp::Time now = this->get_clock()->now();
         //set output for service call
-        blobPos.position.x = worldX;
-        blobPos.position.y = worldY;
-        blobPos.position.z = depth;
-        blobPos.orientation.x = longAxis.x();
-        blobPos.orientation.y = longAxis.y();
-        blobPos.orientation.z = longAxis.z();
-        blobPos.orientation.w = longAxis.w();
+        blobPos.header.frame_id = std::string(m_prefix + "_color_optical_frame");
+        blobPos.header.stamp = now;
+        blobPos.pose.position.x = worldX;
+        blobPos.pose.position.y = worldY;
+        blobPos.pose.position.z = depth;
+        blobPos.pose.orientation.x = longAxis.x();
+        blobPos.pose.orientation.y = longAxis.y();
+        blobPos.pose.orientation.z = longAxis.z();
+        blobPos.pose.orientation.w = longAxis.w();
         std::string output = "Object found at " + std::to_string(worldX) + ", " + std::to_string(worldY) + ", " + std::to_string(depth) + ", " + " angled (in degrees): " + std::to_string(angle) + "\n\n";
         
         if(!m_continuousColor) //dont clutter output terminal
@@ -257,16 +262,16 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::Pose &blobPos)
         //create and publish tf message
         geometry_msgs::msg::TransformStamped ts;
         ts.header.frame_id = std::string(m_prefix + "_color_optical_frame");
-        rclcpp::Time now = this->get_clock()->now();
+
         ts.header.stamp = now;
         ts.child_frame_id= std::string("colorblob_xd");
-        ts.transform.rotation.x = blobPos.orientation.x;
-        ts.transform.rotation.y = blobPos.orientation.y;
-        ts.transform.rotation.z = blobPos.orientation.z;
-        ts.transform.rotation.w = blobPos.orientation.w;
-        ts.transform.translation.x = blobPos.position.x;
-        ts.transform.translation.y = blobPos.position.y;
-        ts.transform.translation.z = blobPos.position.z;
+        ts.transform.rotation.x = blobPos.pose.orientation.x;
+        ts.transform.rotation.y = blobPos.pose.orientation.y;
+        ts.transform.rotation.z = blobPos.pose.orientation.z;
+        ts.transform.rotation.w = blobPos.pose.orientation.w;
+        ts.transform.translation.x = blobPos.pose.position.x;
+        ts.transform.translation.y = blobPos.pose.position.y;
+        ts.transform.translation.z = blobPos.pose.position.z;
         m_tfBroadcasterPtr->sendTransform(ts);
       }
     }

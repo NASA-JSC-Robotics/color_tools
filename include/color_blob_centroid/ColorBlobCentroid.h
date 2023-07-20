@@ -34,7 +34,7 @@ private:
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
-    void processBlob(geometry_msgs::msg::Pose &blobPos);
+    void processBlob(geometry_msgs::msg::PoseStamped &blobPos);
 
     double m_blobSize;
     double m_blobSizeThreshold;

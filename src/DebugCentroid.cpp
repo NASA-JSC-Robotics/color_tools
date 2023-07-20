@@ -103,7 +103,7 @@ void DebugCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_inte
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "request color -> %s", request->color.c_str());
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "image prefix -> %s", request->prefix.c_str());
 
-    response->centroid_pose.position.x = -1; response->centroid_pose.position.y = -1; response->centroid_pose.position.z = -1;
+    response->centroid_pose.pose.position.x = -1; response->centroid_pose.pose.position.y = -1; response->centroid_pose.pose.position.z = -1;
 }
 
 void DebugCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
