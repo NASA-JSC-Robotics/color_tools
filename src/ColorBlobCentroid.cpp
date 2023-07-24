@@ -20,6 +20,7 @@ ColorBlobCentroid::ColorBlobCentroid()
   , m_color("red")
   , m_continuousColor(false)
   , m_mockHardware(false)
+  , m_showImage(false)
 {
   initialize();
 }
@@ -32,13 +33,20 @@ void ColorBlobCentroid::initialize()
   m_imageQos.reliable();
   m_imageQos.durability_volatile();
 
+  this->declare_parameter("continuous_output", false);
+  m_continuousColor = this->get_parameter("continuous_output").as_bool();
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Continuous Output set to %s", m_continuousColor?"true":"false");
+
   this->declare_parameter("prefix", "wrist_mounted_camera");
   m_prefix = this->get_parameter("prefix").as_string();
 
   this->declare_parameter("mock_hardware", false);
   m_mockHardware = this->get_parameter("mock_hardware").as_bool();
-  if (m_mockHardware)
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "!!! WARNING !!! Node in MOCK HARDWARE mode.");
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Mock Hardware set to %s", m_mockHardware?"true !!! WARNING !!!":"false");
+
+  this->declare_parameter("show_image", false);
+  m_showImage = this->get_parameter("show_image").as_bool();
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Show Image set to %s", m_showImage?"true":"false");
 
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Initial settings:\n Image topic prefix: %s\n Color blob: %s", m_prefix.c_str(), m_color.c_str());
 
@@ -146,6 +154,12 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
       {
           printf("%s depth image type must be CV_32FC1 or CV_16UC1\n", __FUNCTION__);
       }
+  }
+
+  if(m_showImage && !m_mockHardware)
+  {
+    cv::imshow("img", m_colorImage);
+    cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
   }
 
   if(m_continuousColor)
@@ -276,13 +290,6 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
       }
     }
   }
-  // cv::imshow("colornames", m_mask);
-  // cv::imshow("dilate -> eroded", eroded);
-  // cv::imshow("depth image", m_depthImage);
-  // cv::waitKey(0);
-
-  // cv::imshow("final result", m_colorImage);
-  // cv::waitKey(0); //set to 1 for coninuous output, set to 0 for single frame forever
 
 }
 

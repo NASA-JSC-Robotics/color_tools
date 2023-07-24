@@ -29,8 +29,26 @@ def generate_launch_description():
         )
     )
 
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "continuous_output",
+            default_value='false',
+            description="continually output the transform when color blob is visible instead of once per service call",
+        )
+    )
+
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "show_image",
+            default_value='false',
+            description="Show an image from the camera - only available if mock_harware is false",
+        )
+    )
+
     prefix = LaunchConfiguration("prefix")
     mock_hw = LaunchConfiguration("mock_hardware")
+    show_img = LaunchConfiguration("show_image")
+    cont_output = LaunchConfiguration("continuous_output")
 
     colorblob_node = Node(
         package="color_blob_centroid",
@@ -41,6 +59,8 @@ def generate_launch_description():
             {
                 "prefix":prefix,
                 "mock_hardware":mock_hw,
+                "show_image":show_img,
+                "continuous_output":cont_output,
             }
         ],
     )

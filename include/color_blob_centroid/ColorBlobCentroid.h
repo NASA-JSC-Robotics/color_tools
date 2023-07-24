@@ -58,6 +58,7 @@ private:
     std::string m_color;
     bool m_continuousColor; //flag for continuous processing of color
     bool m_mockHardware;
+    bool m_showImage;
     sensor_msgs::msg::CameraInfo m_imageInfo;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> m_tfBroadcasterPtr = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
