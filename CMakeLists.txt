@@ -18,6 +18,7 @@ find_package(std_msgs REQUIRED)
 
 set(service_files
   "srv/BlobDimensions.srv"
+  "srv/BlobCentroid.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
