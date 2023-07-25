@@ -1,5 +1,4 @@
 #include "color_blob_centroid/ColorBlobCentroid.h"
-#define MIN_OBJECT_SIZE 18
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -11,6 +10,7 @@ using std::placeholders::_3;
 
 ColorBlobCentroid::ColorBlobCentroid()
   : rclcpp::Node("color_blob_centroid")
+  , m_minBlobSize(10)
   , m_blobSize(-1)
   , m_blobSizeThreshold(50)
   , m_blobAspectRatio(-1)
@@ -57,6 +57,7 @@ void ColorBlobCentroid::initialize()
                       cv::Point( dilation_size, dilation_size ) );
   //service/subsriber creation
   m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("color_set_blob_dimensions", std::bind(&ColorBlobCentroid::color_set_blob_dimensions, this, _1, _2));
+  m_color_simple_srv = this->create_service<dex_ivr_interfaces::srv::BlobCentroid>("color_blob_find", std::bind(&ColorBlobCentroid::color_blob_find, this, _1, _2));
   m_processing_srv = this->create_service<std_srvs::srv::SetBool>("color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
   m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
   m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
@@ -67,6 +68,63 @@ void ColorBlobCentroid::initialize()
                                       std::placeholders::_2, std::placeholders::_3));
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
 }
+
+void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Request> request,
+          std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Response>      response)
+{
+  geometry_msgs::msg::PoseStamped blobPos;
+  //mock hardware means no image processing, just outputting a dummy value.
+  if(m_mockHardware)
+  {
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "!!!!! MOCK HARDWARE ENABLED - outputting fake response. !!!!!");
+    rclcpp::Time now = this->get_clock()->now();
+    blobPos.header.frame_id = std::string(m_prefix + "_color_optical_frame");
+    blobPos.header.stamp = now;
+    blobPos.pose.position.x = 0;
+    blobPos.pose.position.y = 0;
+    blobPos.pose.position.z = 0.5;
+    blobPos.pose.orientation.x = 0;
+    blobPos.pose.orientation.y = 0;
+    blobPos.pose.orientation.z = 0;
+    blobPos.pose.orientation.w = 1;
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "MSG -> x:0 y:0 z:0.5 --- qx:0 qy:0 qz:0 qw:1 \n\n");
+
+    //create and publish tf message
+    geometry_msgs::msg::TransformStamped ts;
+    ts.header.frame_id = std::string(m_prefix + "_color_optical_frame");
+    ts.header.stamp = now;
+    ts.child_frame_id= std::string("colorblob_xd");
+    ts.transform.rotation.y = blobPos.pose.orientation.y;
+    ts.transform.rotation.z = blobPos.pose.orientation.z;
+    ts.transform.rotation.w = blobPos.pose.orientation.w;
+    ts.transform.rotation.x = blobPos.pose.orientation.x;
+    ts.transform.translation.x = blobPos.pose.position.x;
+    ts.transform.translation.y = blobPos.pose.position.y;
+    ts.transform.translation.z = blobPos.pose.position.z;
+    m_tfBroadcasterPtr->sendTransform(ts);
+    response->centroid_pose = blobPos;
+    return;
+  }
+
+  //if not mock_hardware actually proces the visual node
+  m_minBlobSize = request->min_blob_size;
+  if (request->color != "") //change color if given new one
+    m_color = request->color;
+
+  std::string req = "Incoming Request -\n\nMin Blob Size: " + std::to_string(m_minBlobSize) + "\nColor: " + m_color + "\nImage prefix: " + m_prefix;
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), req.c_str());
+
+  processBlob(blobPos);
+  response->centroid_pose = blobPos;
+  if (blobPos.header.frame_id != "")
+  { 
+    std::string output = "Object found at " + std::to_string(blobPos.pose.position.x) + ", " + std::to_string(blobPos.pose.position.y) + ", " + std::to_string(blobPos.pose.position.z) + ", " + " angled: " + std::to_string(blobPos.pose.orientation.x) + ", "+ std::to_string(blobPos.pose.orientation.y) + ", "+ std::to_string(blobPos.pose.orientation.z) + ", "+ std::to_string(blobPos.pose.orientation.w) + "\n\n";
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
+  }
+  else
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "FAILED to find object in image frame");
+}
+
 
 void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
           std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response>      response)
@@ -218,14 +276,14 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
     if ((m_blobAspectRatio == -1 &&  m_blobSize == -1 ) || (m_blobAspectRatio == 0 &&  m_blobSize == 0 ))
     {
       //eliminate noisey shadows
-      if(height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE)
+      if(height > m_minBlobSize && width > m_minBlobSize)
           processContour = true;
     }
     // if aspect ratio exists and is within threshold of what is expected.
     if (m_blobAspectRatio != -1 && (width / height) < (m_blobAspectRatio + m_blobARThreshold/2) &&  (width / height) > (m_blobAspectRatio - m_blobARThreshold/2))
     {
       // if size exists and meets min size requirement (close enough that it is not considered random noise)
-      if(m_blobSize != -1 && height > MIN_OBJECT_SIZE && width > MIN_OBJECT_SIZE && height > (m_blobSize-m_blobSizeThreshold) && height < (m_blobSize + m_blobSizeThreshold))
+      if(m_blobSize != -1 && height > m_minBlobSize && width > m_minBlobSize && height > (m_blobSize-m_blobSizeThreshold) && height < (m_blobSize + m_blobSizeThreshold))
       {
           processContour = true;
       }
