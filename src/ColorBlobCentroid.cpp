@@ -122,7 +122,7 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
   }
   else
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "FAILED to find object in image frame");
+    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "FAILED to find object in image frame");
 }
 
 
@@ -191,7 +191,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
   }
   else
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "FAILED to find object in image frame");
+    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "FAILED to find object in image frame");
 }
 
 //Continuously output transform instead of once per service call
@@ -233,7 +233,7 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
 
   if (m_colorImage.empty())
   {
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ERROR - No image. Check that image topics exist and data is flowing.");
+    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ERROR - No image. Check that image topics exist and data is flowing.");
     return;
   }
 
@@ -315,7 +315,7 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
 
         if (depth == 0.0) //if the depth camera is too close to the object, dont publish transforms
           {
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ERROR - Depth Camera too close/far from object.");
+            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ERROR - Depth Camera too close/far from object.");
             continue;
           }
 
