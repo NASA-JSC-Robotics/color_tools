@@ -127,6 +127,13 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
 
   processBlob(blobPos);
   response->centroid_pose = blobPos;
+  if (blobPos.header.frame_id != "")
+  { 
+    std::string output = "Object found at " + std::to_string(blobPos.pose.position.x) + ", " + std::to_string(blobPos.pose.position.y) + ", " + std::to_string(blobPos.pose.position.z) + ", " + " angled: " + std::to_string(blobPos.pose.orientation.x) + ", "+ std::to_string(blobPos.pose.orientation.y) + ", "+ std::to_string(blobPos.pose.orientation.z) + ", "+ std::to_string(blobPos.pose.orientation.w) + "\n\n";
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
+  }
+  else
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "FAILED to find object in image frame");
 }
 
 //Continuously output transform instead of once per service call
@@ -274,10 +281,6 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
         blobPos.pose.orientation.y = longAxis.y();
         blobPos.pose.orientation.z = longAxis.z();
         blobPos.pose.orientation.w = longAxis.w();
-        std::string output = "Object found at " + std::to_string(worldX) + ", " + std::to_string(worldY) + ", " + std::to_string(depth) + ", " + " angled (in degrees): " + std::to_string(angle) + "\n\n";
-        
-        if(!m_continuousColor) //dont clutter output terminal
-          RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
 
         //create and publish tf message
         geometry_msgs::msg::TransformStamped ts;
