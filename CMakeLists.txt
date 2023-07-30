@@ -20,8 +20,14 @@ set(service_files
   "srv/BlobDimensions.srv"
 )
 
+set(action_files
+  "action/FindWipe.action"
+  "action/GuiRun.action"
+)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${service_files}
+  ${action_files}
   DEPENDENCIES
     std_msgs
     geometry_msgs

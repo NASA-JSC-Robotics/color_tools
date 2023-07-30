@@ -1,0 +1,11 @@
+string move_msg             # Message used to indicate robot movement and clear GUI
+---
+string a_frame              # Frame name of user-defined point A
+string b_frame              # Frame name of user-defined point A
+---
+int64 gui_status            # Status of GUI in sequence of selecting and accepting points
+                            # 0 : points cleared/not selected
+                            # 1 : point A selected
+                            # 2 : points A and B selected
+                            # 3 : points accepted/success
+                            # 4 : close gui w/o accepting points/failed
