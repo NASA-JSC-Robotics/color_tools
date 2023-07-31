@@ -1,5 +1,6 @@
 string gripper_frame        # Frame (eg grasp_frame) with which to align wipe frame
 float64 z_offset            # Offset by which to move frame for better grasping (assumes +z normal-ish to and into table)
+bool img_show               # Choose whether or not to show image
 ---
 string wipe_frame           # Name of output frame
 ---
