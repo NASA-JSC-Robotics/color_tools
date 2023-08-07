@@ -19,7 +19,6 @@ endif()
   find_package(cv_bridge REQUIRED)
   find_package(image_geometry REQUIRED)
   find_package(message_filters REQUIRED)
-  find_package(ros2_color_names_interfaces REQUIRED)
   find_package(dex_ivr_interfaces REQUIRED)
   find_package(std_srvs REQUIRED)
   find_package(tf2_ros REQUIRED)
@@ -50,7 +49,6 @@ endif()
   geometry_msgs
   cv_bridge
   color_names
-  ros2_color_names_interfaces
   dex_ivr_interfaces
   std_srvs
   OpenCV)
@@ -66,7 +64,6 @@ endif()
   image_transport 
   cv_bridge
   color_names
-  ros2_color_names_interfaces
   dex_ivr_interfaces
   OpenCV)
 
