@@ -73,10 +73,6 @@ endif()
   add_executable(ColorBlobCentroid src/ColorBlobCentroid.cpp)
   ament_target_dependencies(ColorBlobCentroid ${centroid_dependencies})
 
-  
-  add_executable(DebugCentroid src/DebugCentroid.cpp)
-  ament_target_dependencies(DebugCentroid ${centroid_dependencies})
-
   add_executable(CentroidClient src/CentroidClient.cpp)
   ament_target_dependencies(CentroidClient ${client_dependencies})
 
@@ -84,7 +80,6 @@ endif()
     ${PROJECT_NAME}
     ColorBlobCentroid
     CentroidClient
-    DebugCentroid
     DESTINATION lib/${PROJECT_NAME}/
     )
 
