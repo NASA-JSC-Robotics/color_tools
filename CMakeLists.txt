@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(velcro-centroid)
+project(color_blob_centroid)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -19,7 +19,6 @@ endif()
   find_package(cv_bridge REQUIRED)
   find_package(image_geometry REQUIRED)
   find_package(message_filters REQUIRED)
-  find_package(ros2_color_names_interfaces REQUIRED)
   find_package(dex_ivr_interfaces REQUIRED)
   find_package(std_srvs REQUIRED)
   find_package(tf2_ros REQUIRED)
@@ -50,7 +49,6 @@ endif()
   geometry_msgs
   cv_bridge
   color_names
-  ros2_color_names_interfaces
   dex_ivr_interfaces
   std_srvs
   OpenCV)
@@ -66,7 +64,6 @@ endif()
   image_transport 
   cv_bridge
   color_names
-  ros2_color_names_interfaces
   dex_ivr_interfaces
   OpenCV)
 
@@ -76,19 +73,19 @@ endif()
   add_executable(ColorBlobCentroid src/ColorBlobCentroid.cpp)
   ament_target_dependencies(ColorBlobCentroid ${centroid_dependencies})
 
-  
-  add_executable(DebugCentroid src/DebugCentroid.cpp)
-  ament_target_dependencies(DebugCentroid ${centroid_dependencies})
-
   add_executable(CentroidClient src/CentroidClient.cpp)
   ament_target_dependencies(CentroidClient ${client_dependencies})
 
-install(TARGETS
-  ${PROJECT_NAME}
-  ColorBlobCentroid
-  CentroidClient
-  DebugCentroid
-  DESTINATION lib/${PROJECT_NAME}/)
+  install(TARGETS
+    ${PROJECT_NAME}
+    ColorBlobCentroid
+    CentroidClient
+    DESTINATION lib/${PROJECT_NAME}/
+    )
+
+  install(DIRECTORY
+    launch
+    DESTINATION share/${PROJECT_NAME}/)
 
   if(BUILD_TESTING)
     find_package(ament_lint_auto REQUIRED)

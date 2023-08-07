@@ -45,18 +45,18 @@ int main(int argc, char **argv)
     rclcpp::FutureReturnCode::SUCCESS)
   {
     static tf2_ros::TransformBroadcaster tf_bc = tf2_ros::TransformBroadcaster(node);
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "position: %f, %f, %f, orientation: %f, %f, %f, %f", result.get()->centroid_pose.position.x ,result.get()->centroid_pose.position.y ,result.get()->centroid_pose.position.z,result.get()->centroid_pose.orientation.x,result.get()->centroid_pose.orientation.y,result.get()->centroid_pose.orientation.z,result.get()->centroid_pose.orientation.w);
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "position: %f, %f, %f, orientation: %f, %f, %f, %f", result.get()->centroid_pose.pose.position.x ,result.get()->centroid_pose.pose.position.y ,result.get()->centroid_pose.pose.position.z,result.get()->centroid_pose.pose.orientation.x,result.get()->centroid_pose.pose.orientation.y,result.get()->centroid_pose.pose.orientation.z,result.get()->centroid_pose.pose.orientation.w);
     geometry_msgs::msg::TransformStamped t;
     t.header.stamp = node->get_clock()->now();
     t.header.frame_id = "world";
-    t.child_frame_id = "velcro_centroid";
-    t.transform.translation.x = result.get()->centroid_pose.position.x;
-    t.transform.translation.y = result.get()->centroid_pose.position.y;
-    t.transform.translation.z = result.get()->centroid_pose.position.z;
-    t.transform.rotation.x = result.get()->centroid_pose.orientation.x;
-    t.transform.rotation.y = result.get()->centroid_pose.orientation.y;
-    t.transform.rotation.z = result.get()->centroid_pose.orientation.z;
-    t.transform.rotation.w = result.get()->centroid_pose.orientation.w;
+    t.child_frame_id = "color_blob_centroid";
+    t.transform.translation.x = result.get()->centroid_pose.pose.position.x;
+    t.transform.translation.y = result.get()->centroid_pose.pose.position.y;
+    t.transform.translation.z = result.get()->centroid_pose.pose.position.z;
+    t.transform.rotation.x = result.get()->centroid_pose.pose.orientation.x;
+    t.transform.rotation.y = result.get()->centroid_pose.pose.orientation.y;
+    t.transform.rotation.z = result.get()->centroid_pose.pose.orientation.z;
+    t.transform.rotation.w = result.get()->centroid_pose.pose.orientation.w;
     tf_bc.sendTransform(t);
 
   } else {
