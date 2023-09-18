@@ -13,7 +13,6 @@ def generate_launch_description():
     debug = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(get_package_share_directory("color_blob_centroid"), 'launch','colorblob.launch.py')),
         launch_arguments={
-            "prefix": "camera",
             "continuous_output": "true",
             "show_image": "true",
         }.items(),

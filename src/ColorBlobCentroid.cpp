@@ -49,6 +49,10 @@ void ColorBlobCentroid::initialize()
   m_showImage = this->get_parameter("show_image").as_bool();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Show Image set to %s", m_showImage?"true":"false");
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Initial settings:\n Image topic prefix: %s\n Color blob: %s", m_prefix.c_str(), m_color.c_str());
+  //verbose debug mode that shows underlying color
+  this->declare_parameter("show_image_color", false);
+  m_showImageColor = this->get_parameter("show_image_color").as_bool();
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Show Image - Color, set to %s", m_showImageColor?"true":"false");
 
   //Set initialization of the actual image processing components
   float dilation_size=1.0;
@@ -357,11 +361,18 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
       }
     }
   }
-  if(m_showImage && !m_mockHardware)
+  if(m_showImage && !m_mockHardware && !m_showImageColor)
   {
     cv::imshow("img", m_colorImage);
-    cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
+    //cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
   }
+  else if(m_showImage && !m_mockHardware && m_showImageColor)
+  {
+    cv::imshow("img", m_colorImage);
+    cv::imshow("color segmentation", eroded);
+    //cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
+  }
+    cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
 }
 
 
