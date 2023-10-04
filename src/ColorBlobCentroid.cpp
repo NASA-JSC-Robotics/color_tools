@@ -44,15 +44,15 @@ void ColorBlobCentroid::initialize()
   this->declare_parameter("mock_hardware", false);
   m_mockHardware = this->get_parameter("mock_hardware").as_bool();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Mock Hardware set to %s", m_mockHardware?"true !!! WARNING !!!":"false");
-  //debug mode to show camera imagethis->declare_parameter("show_image", false);
+  //show camera imagethis->declare_parameter("show_image", false);
   this->declare_parameter("show_image", false);
   m_showImage = this->get_parameter("show_image").as_bool();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Show Image set to %s", m_showImage?"true":"false");
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Initial settings:\n Image topic prefix: %s\n Color blob: %s", m_prefix.c_str(), m_color.c_str());
   //verbose debug mode that shows underlying color
   this->declare_parameter("debug", false);
   m_debugMode = this->get_parameter("debug").as_bool();
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Show Image - Color, set to %s", m_debugMode?"true":"false");
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Debug, set to %s", m_debugMode?"true":"false");
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Initial settings:\n Image topic prefix: %s\n Color blob: %s", m_prefix.c_str(), m_color.c_str());
 
   //Set initialization of the actual image processing components
   float dilation_size=1.0;
@@ -298,6 +298,8 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
     // default behavior (Aspect/Size == -1) is to process all contours that appear
     if (processContour)
     {
+
+      drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(0, 255, 255), 1, 8);
       // calculate x,y coordinate of centroid
       cv::Moments moment = moments(contours[i]);
       cv::Point2f momentPt;
@@ -314,13 +316,13 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
         double worldY = (momentPt.y-m_imageInfo.k.at(5)) * (depth/m_imageInfo.k.at(4)); // (y' - cy) * (depth/focal length y) --- where y' is image y in pixels and cy is center of image y from camera image
         if (m_debugMode)
         {
-          std::string boxAR = "AR: " + std::to_string((width / height));
-          std::string boxSize = "sizeW: " + std::to_string(width) + " sizeH:" + std::to_string(height) + " angle: " + std::to_string(angle);
-          putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-          putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 50, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+          std::string boxAR = "AR: " + std::to_string((width / height)) + " angle: " + std::to_string(angle);
+          std::string boxSize = "W: " + std::to_string(int(width)) + " H:" + std::to_string(int(height));
+          //putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 50, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+          putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 50, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
 
           std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
-          putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 50, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+          //putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 50, momentPt.y + 40),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
         }
 
 

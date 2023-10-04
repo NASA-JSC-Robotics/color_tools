@@ -32,7 +32,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "continuous_output",
-            default_value='false',
+            default_value='true',
             description="continually output the transform when color blob is visible instead of once per service call",
         )
     )
@@ -40,7 +40,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "show_image",
-            default_value='false',
+            default_value='true',
             description="Show an image from the camera - only available if mock_harware is false",
         )
     )
