@@ -26,6 +26,16 @@ class ColorBlobCentroid : public rclcpp::Node
 public:
     ColorBlobCentroid();
     ~ColorBlobCentroid();
+    static bool sortContour(std::vector<cv::Point> a, std::vector<cv::Point> b)
+    {
+      cv::Rect rectA = cv::boundingRect(a);
+      cv::Rect rectB = cv::boundingRect(b);
+
+      if (abs(rectA.y - rectB.y) <= 25)
+          return (rectA.x < rectB.x);
+
+      return (rectA.y < rectB.y);
+    }
 
 private:
     void initialize();
@@ -38,6 +48,7 @@ private:
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
     void processBlob(geometry_msgs::msg::PoseStamped &blobPos);
+
 
     double m_minBlobSize;
     double m_blobSize;

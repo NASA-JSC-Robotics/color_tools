@@ -259,6 +259,7 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
   std::vector<cv::Vec4i> hierarchy; 
 
   findContours(eroded, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+  std::sort(contours.begin(), contours.end(), ColorBlobCentroid::sortContour); //sort contours
 
   for (size_t i =0; i < contours.size(); i++)
   {
