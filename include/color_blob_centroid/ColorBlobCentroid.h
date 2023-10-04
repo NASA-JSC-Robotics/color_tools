@@ -64,7 +64,8 @@ private:
     bool m_continuousColor; //flag for continuous processing of color
     bool m_mockHardware;
     bool m_showImage;
-    bool m_showImageColor;
+    bool m_debugMode;
+    uint m_blobNum;
     sensor_msgs::msg::CameraInfo m_imageInfo;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> m_tfBroadcasterPtr = std::make_unique<tf2_ros::TransformBroadcaster>(*this);

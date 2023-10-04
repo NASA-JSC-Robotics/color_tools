@@ -50,9 +50,9 @@ void ColorBlobCentroid::initialize()
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Show Image set to %s", m_showImage?"true":"false");
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Initial settings:\n Image topic prefix: %s\n Color blob: %s", m_prefix.c_str(), m_color.c_str());
   //verbose debug mode that shows underlying color
-  this->declare_parameter("show_image_color", false);
-  m_showImageColor = this->get_parameter("show_image_color").as_bool();
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Show Image - Color, set to %s", m_showImageColor?"true":"false");
+  this->declare_parameter("debug", false);
+  m_debugMode = this->get_parameter("debug").as_bool();
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Show Image - Color, set to %s", m_debugMode?"true":"false");
 
   //Set initialization of the actual image processing components
   float dilation_size=1.0;
@@ -241,7 +241,7 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
     return;
   }
 
-
+  m_blobNum = 0;
   m_mask = 0;
   m_colorNames.createColorMask(m_colorImage, m_color, m_mask);
 
@@ -304,18 +304,24 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
       { 
 
         momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
-
         circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
-        std::string boxAR = "AR: " + std::to_string((width / height));
-        std::string boxSize = "sizeW: " + std::to_string(width) + " sizeH:" + std::to_string(height) + " angle: " + std::to_string(angle);
-        putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-        putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 50, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        putText(m_colorImage, std::to_string(m_blobNum), cv::Point2f(momentPt.x - 10, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        m_blobNum++;
         //Depth image stuff
         double depth = m_depthImage.at<float>(momentPt);
         double worldX = (momentPt.x-m_imageInfo.k.at(2)) * (depth/m_imageInfo.k.at(0)); // (x' - cx) * (depth/focal length x) --- where x' is image x in pixels and cx is center of image x from camera image
         double worldY = (momentPt.y-m_imageInfo.k.at(5)) * (depth/m_imageInfo.k.at(4)); // (y' - cy) * (depth/focal length y) --- where y' is image y in pixels and cy is center of image y from camera image
-        std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
-        putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 50, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        if (m_debugMode)
+        {
+          std::string boxAR = "AR: " + std::to_string((width / height));
+          std::string boxSize = "sizeW: " + std::to_string(width) + " sizeH:" + std::to_string(height) + " angle: " + std::to_string(angle);
+          putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 25, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+          putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 50, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+
+          std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
+          putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 50, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+        }
+
 
         if (depth == 0.0) //if the depth camera is too close to the object, dont publish transforms
           {
@@ -361,16 +367,12 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
       }
     }
   }
-  if(m_showImage && !m_mockHardware && !m_showImageColor)
+
+  if(m_showImage && !m_mockHardware )
   {
     cv::imshow("img", m_colorImage);
-    //cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
-  }
-  else if(m_showImage && !m_mockHardware && m_showImageColor)
-  {
-    cv::imshow("img", m_colorImage);
-    cv::imshow("color segmentation", eroded);
-    //cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
+    if (m_debugMode)
+      cv::imshow("color segmentation", eroded);
   }
     cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
 }

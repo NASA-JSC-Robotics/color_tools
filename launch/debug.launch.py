@@ -15,6 +15,7 @@ def generate_launch_description():
         launch_arguments={
             "continuous_output": "true",
             "show_image": "true",
+            "debug": "true",
         }.items(),
     )
 
