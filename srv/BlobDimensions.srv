@@ -6,3 +6,4 @@ string color                    # color of the mask to use
 string prefix                   # prefix for image topics names
 ---
 geometry_msgs/PoseStamped centroid_pose 
+sensor_msgs/Image img

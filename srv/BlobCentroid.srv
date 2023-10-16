@@ -2,3 +2,4 @@ float64 min_blob_size           # Minimum size of width or height of object in p
 string color                    # color of the mask to use
 ---
 geometry_msgs/PoseStamped centroid_pose 
+sensor_msgs/Image img
