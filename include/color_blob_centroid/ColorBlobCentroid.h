@@ -39,11 +39,15 @@ public:
 
 private:
     void initialize();
+    /* Helper */
+    bool sendMockHardwareTransform(geometry_msgs::msg::PoseStamped &blobPos);
+    /* Services */
     void color_set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
       std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response>      response);
     void color_blob_find(const std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Request> request,
       std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Response>      response);
     void toggle_continuous(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, std::shared_ptr<std_srvs::srv::SetBool::Response> response);
+    /* Core Processing */
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);

@@ -32,7 +32,8 @@ void ColorBlobCentroid::initialize()
   m_imageQos.reliable();
   m_imageQos.durability_volatile();
   
-  //Set initialization parameters for user portion of node
+
+  //  --- Ros Parameters ---
   //continuous output of final transform 
   this->declare_parameter("continuous_output", false);
   m_continuousColor = this->get_parameter("continuous_output").as_bool();
@@ -54,12 +55,11 @@ void ColorBlobCentroid::initialize()
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Debug, set to %s", m_debugMode?"true":"false");
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Initial settings:\n Image topic prefix: %s\n Color blob: %s", m_prefix.c_str(), m_color.c_str());
 
-  //Set initialization of the actual image processing components
+  //  --- Image Processing Parameters --
   float dilation_size=1.0;
   m_morphology = getStructuringElement( cv::MORPH_RECT,
                       cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                       cv::Point( dilation_size, dilation_size ) );
-  //service/subsriber creation
   m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("color_set_blob_dimensions", std::bind(&ColorBlobCentroid::color_set_blob_dimensions, this, _1, _2));
   m_color_simple_srv = this->create_service<dex_ivr_interfaces::srv::BlobCentroid>("color_blob_find", std::bind(&ColorBlobCentroid::color_blob_find, this, _1, _2));
   m_processing_srv = this->create_service<std_srvs::srv::SetBool>("color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
@@ -73,43 +73,58 @@ void ColorBlobCentroid::initialize()
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
 }
 
+/****************
+ * Mock Hardware - for when testing color blob on system without use of a camera
+*****************/
+bool ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStamped &blobPos)
+{
+    if(m_mockHardware)
+      {
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "!!!!! MOCK HARDWARE ENABLED - outputting fake response. !!!!!");
+        rclcpp::Time now = this->get_clock()->now();
+        blobPos.header.frame_id = std::string(m_prefix + "_color_optical_frame");
+        blobPos.header.stamp = now;
+        blobPos.pose.position.x = 0;
+        blobPos.pose.position.y = 0;
+        blobPos.pose.position.z = 0.5;
+        blobPos.pose.orientation.x = 0;
+        blobPos.pose.orientation.y = 0;
+        blobPos.pose.orientation.z = 0;
+        blobPos.pose.orientation.w = 1;
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "MSG -> x:0 y:0 z:0.5 --- qx:0 qy:0 qz:0 qw:1 \n\n");
+
+        //create and publish tf message
+        geometry_msgs::msg::TransformStamped ts;
+        ts.header.frame_id = std::string(m_prefix + "_color_optical_frame");
+        ts.header.stamp = now;
+        ts.child_frame_id= std::string("colorblob_xd");
+        ts.transform.rotation.y = blobPos.pose.orientation.y;
+        ts.transform.rotation.z = blobPos.pose.orientation.z;
+        ts.transform.rotation.w = blobPos.pose.orientation.w;
+        ts.transform.rotation.x = blobPos.pose.orientation.x;
+        ts.transform.translation.x = blobPos.pose.position.x;
+        ts.transform.translation.y = blobPos.pose.position.y;
+        ts.transform.translation.z = blobPos.pose.position.z;
+        m_tfBroadcasterPtr->sendTransform(ts);
+
+        return true;
+      }
+      return false;
+}
+
+/****************
+ * Color Blob Find Service - minimalist service call to get color, only uses blob size and blob color
+*****************/
 void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Request> request,
           std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Response>      response)
 {
+  //handle mock hardware
   geometry_msgs::msg::PoseStamped blobPos;
-  //mock hardware means no image processing, just outputting a dummy value.
-  if(m_mockHardware)
+  if (sendMockHardwareTransform(blobPos))
   {
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "!!!!! MOCK HARDWARE ENABLED - outputting fake response. !!!!!");
-    rclcpp::Time now = this->get_clock()->now();
-    blobPos.header.frame_id = std::string(m_prefix + "_color_optical_frame");
-    blobPos.header.stamp = now;
-    blobPos.pose.position.x = 0;
-    blobPos.pose.position.y = 0;
-    blobPos.pose.position.z = 0.5;
-    blobPos.pose.orientation.x = 0;
-    blobPos.pose.orientation.y = 0;
-    blobPos.pose.orientation.z = 0;
-    blobPos.pose.orientation.w = 1;
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "MSG -> x:0 y:0 z:0.5 --- qx:0 qy:0 qz:0 qw:1 \n\n");
-
-    //create and publish tf message
-    geometry_msgs::msg::TransformStamped ts;
-    ts.header.frame_id = std::string(m_prefix + "_color_optical_frame");
-    ts.header.stamp = now;
-    ts.child_frame_id= std::string("colorblob_xd");
-    ts.transform.rotation.y = blobPos.pose.orientation.y;
-    ts.transform.rotation.z = blobPos.pose.orientation.z;
-    ts.transform.rotation.w = blobPos.pose.orientation.w;
-    ts.transform.rotation.x = blobPos.pose.orientation.x;
-    ts.transform.translation.x = blobPos.pose.position.x;
-    ts.transform.translation.y = blobPos.pose.position.y;
-    ts.transform.translation.z = blobPos.pose.position.z;
-    m_tfBroadcasterPtr->sendTransform(ts);
     response->centroid_pose = blobPos;
     return;
   }
-
   //if not mock_hardware actually proces the visual node
   m_minBlobSize = request->min_blob_size;
   if (request->color != "") //change color if given new one
@@ -131,7 +146,9 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
     RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "FAILED to find object in image frame");
 }
 
-
+/****************
+ * Color Blob Set Blob Dimenstions Service - advanced service call to get color, has many settable parameters
+*****************/
 void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
           std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response>      response)
 {
@@ -139,41 +156,13 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
                      + "\n Size: " + std::to_string(request->size) + "\n Size Thresh: " + std::to_string(request->size_threshold)
                      + "\n Color: " + request->color.c_str() + "\n Image prefix: " + request->prefix.c_str();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), req.c_str());
+  //handle mock hardware
   geometry_msgs::msg::PoseStamped blobPos;
-
-  //mock hardware means no image processing, just outputting a dummy value.
-  if(m_mockHardware)
+  if (sendMockHardwareTransform(blobPos))
   {
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "!!!!! MOCK HARDWARE ENABLED - outputting fake response. !!!!!");
-    rclcpp::Time now = this->get_clock()->now();
-    blobPos.header.frame_id = std::string(m_prefix + "_color_optical_frame");
-    blobPos.header.stamp = now;
-    blobPos.pose.position.x = 0;
-    blobPos.pose.position.y = 0;
-    blobPos.pose.position.z = 0.5;
-    blobPos.pose.orientation.x = 0;
-    blobPos.pose.orientation.y = 0;
-    blobPos.pose.orientation.z = 0;
-    blobPos.pose.orientation.w = 1;
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "MSG -> x:0 y:0 z:0.5 --- qx:0 qy:0 qz:0 qw:1 \n\n");
-
-    //create and publish tf message
-    geometry_msgs::msg::TransformStamped ts;
-    ts.header.frame_id = std::string(m_prefix + "_color_optical_frame");
-    ts.header.stamp = now;
-    ts.child_frame_id= std::string("colorblob_xd");
-    ts.transform.rotation.y = blobPos.pose.orientation.y;
-    ts.transform.rotation.z = blobPos.pose.orientation.z;
-    ts.transform.rotation.w = blobPos.pose.orientation.w;
-    ts.transform.rotation.x = blobPos.pose.orientation.x;
-    ts.transform.translation.x = blobPos.pose.position.x;
-    ts.transform.translation.y = blobPos.pose.position.y;
-    ts.transform.translation.z = blobPos.pose.position.z;
-    m_tfBroadcasterPtr->sendTransform(ts);
     response->centroid_pose = blobPos;
     return;
   }
-
   //if not mock_hardware actually proces the visual node
   m_blobAspectRatio = request->aspect_ratio;
   m_blobARThreshold = request->aspect_ratio_threshold;
@@ -181,7 +170,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
   m_blobSizeThreshold = request->size_threshold;
   if (request->color != "") //change color if given new one
     m_color = request->color;
-  if (request->prefix != "") //if new topic given, change image toppic subscribers
+  if (request->prefix != "") //if new topic given, change image topic subscribers
   {
     m_prefix = request->prefix;
     m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
@@ -202,7 +191,9 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
     RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "FAILED to find object in image frame");
 }
 
-//Continuously output transform instead of once per service call
+/****************
+ * Toggle Continuous Service - toggle for setting whether you want continuous image processing
+*****************/
 void ColorBlobCentroid::toggle_continuous(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, std::shared_ptr<std_srvs::srv::SetBool::Response> response)
 {
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Continuous output set to %d", request->data);
@@ -210,6 +201,9 @@ void ColorBlobCentroid::toggle_continuous(const std::shared_ptr<std_srvs::srv::S
   response->success = true;
 }
 
+/****************
+ * Image Callback - Handles incoming image, passes to processing
+*****************/
 void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                                          const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                                          const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
@@ -237,9 +231,14 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
   }
 }
 
+/****************
+ * Process Blob - OpenCV & colorblob image processing
+*****************/
 void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg)
 {
-
+  if (sendMockHardwareTransform(blobPos))
+    return;
+    
   if (m_colorImage.empty())
   {
     RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ERROR - No image. Check that image topics exist and data is flowing.");
