@@ -48,7 +48,7 @@ void ColorBlobCentroid::initialize()
   this->declare_parameter("show_image", false);
   m_showImage = this->get_parameter("show_image").as_bool();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Show Image set to %s", m_showImage?"true":"false");
-  //verbose debug mode that shows underlying color
+    //verbose debug mode that shows underlying color
   this->declare_parameter("debug", false);
   m_debugMode = this->get_parameter("debug").as_bool();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Debug, set to %s", m_debugMode?"true":"false");
@@ -117,9 +117,11 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
 
   std::string req = "Incoming Request -\n\nMin Blob Size: " + std::to_string(m_minBlobSize) + "\nColor: " + m_color + "\nImage prefix: " + m_prefix;
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), req.c_str());
-
-  processBlob(blobPos);
+  
+  sensor_msgs::msg::Image blobImg;
+  processBlob(blobPos, blobImg);
   response->centroid_pose = blobPos;
+  response->img = blobImg;
   if (blobPos.header.frame_id != "")
   { 
     std::string output = "Object found at " + std::to_string(blobPos.pose.position.x) + ", " + std::to_string(blobPos.pose.position.y) + ", " + std::to_string(blobPos.pose.position.z) + ", " + " angled: " + std::to_string(blobPos.pose.orientation.x) + ", "+ std::to_string(blobPos.pose.orientation.y) + ", "+ std::to_string(blobPos.pose.orientation.z) + ", "+ std::to_string(blobPos.pose.orientation.w) + "\n\n";
@@ -187,8 +189,10 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
     m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/color/camera_info", m_imageQos.get_rmw_qos_profile());
   }
 
-  processBlob(blobPos);
+  sensor_msgs::msg::Image blobImg;
+  processBlob(blobPos, blobImg);
   response->centroid_pose = blobPos;
+  response->img = blobImg;
   if (blobPos.header.frame_id != "")
   { 
     std::string output = "Object found at " + std::to_string(blobPos.pose.position.x) + ", " + std::to_string(blobPos.pose.position.y) + ", " + std::to_string(blobPos.pose.position.z) + ", " + " angled: " + std::to_string(blobPos.pose.orientation.x) + ", "+ std::to_string(blobPos.pose.orientation.y) + ", "+ std::to_string(blobPos.pose.orientation.z) + ", "+ std::to_string(blobPos.pose.orientation.w) + "\n\n";
@@ -228,11 +232,12 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
   if(m_continuousColor)
   {
     geometry_msgs::msg::PoseStamped blobPos;
-    processBlob(blobPos); //live processing for debugging
+    sensor_msgs::msg::Image blobImg;
+    processBlob(blobPos, blobImg); //live processing for debugging
   }
 }
 
-void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
+void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg)
 {
 
   if (m_colorImage.empty())
@@ -325,7 +330,6 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
           //putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 50, momentPt.y + 40),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
         }
 
-
         if (depth == 0.0) //if the depth camera is too close to the object, dont publish transforms
           {
             RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ERROR - Depth Camera too close/far from object.");
@@ -352,6 +356,14 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos)
         blobPos.pose.orientation.y = longAxis.y();
         blobPos.pose.orientation.z = longAxis.z();
         blobPos.pose.orientation.w = longAxis.w();
+
+        //img output
+        //m_colorImage = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
+        cv_bridge::CvImage out_img;
+
+        out_img.header = blobPos.header;
+        out_img.image = m_colorImage;
+        blobImg = *out_img.toImageMsg().get();
 
         //create and publish tf message
         geometry_msgs::msg::TransformStamped ts;
