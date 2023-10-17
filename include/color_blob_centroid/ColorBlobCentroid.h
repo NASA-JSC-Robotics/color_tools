@@ -54,7 +54,7 @@ private:
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
-    void processBlob(geometry_msgs::msg::PoseStamped &blobPos,sensor_msgs::msg::Image &blobImg); //iterates through all color blobs in image and filters them with openCV & the thresholds specified by service
+    void processBlobs(geometry_msgs::msg::PoseStamped &blobPos,sensor_msgs::msg::Image &blobImg); //iterates through all color blobs in image and filters them with openCV & the thresholds specified by service
 
     //Blob filtering parameters to maintain between service calls
     double m_minBlobSize;

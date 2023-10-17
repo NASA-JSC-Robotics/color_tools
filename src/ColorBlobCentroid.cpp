@@ -260,6 +260,7 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
     return;
   }
   //if not mock_hardware actually proces the visual node
+  m_desiredBlob = request->desired_blob;
   m_minBlobSize = request->min_blob_size;
   if (request->color != "") //change color if given new one
     m_color = request->color;
@@ -268,7 +269,7 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), req.c_str());
   
   sensor_msgs::msg::Image blobImg;
-  processBlob(blobPos, blobImg);
+  processBlobs(blobPos, blobImg);
   response->centroid_pose = blobPos;
   response->img = blobImg;
   if (blobPos.header.frame_id != "")
@@ -302,6 +303,8 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
   m_blobARThreshold = request->aspect_ratio_threshold;
   m_blobSize = request->size;
   m_blobSizeThreshold = request->size_threshold;
+  if (request->desired_blob != NULL) //change desired blob index if given new one
+    m_desiredBlob = request->desired_blob;
   if (request->color != "") //change color if given new one
     m_color = request->color;
   if (request->prefix != "") //if new topic given, change image topic subscribers
@@ -313,7 +316,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
   }
 
   sensor_msgs::msg::Image blobImg;
-  processBlob(blobPos, blobImg);
+  processBlobs(blobPos, blobImg);
   response->centroid_pose = blobPos;
   response->img = blobImg;
   if (blobPos.header.frame_id != "")
@@ -361,14 +364,14 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
   {
     geometry_msgs::msg::PoseStamped blobPos;
     sensor_msgs::msg::Image blobImg;
-    processBlob(blobPos, blobImg); //live processing for debugging
+    processBlobs(blobPos, blobImg); //live processing for debugging
   }
 }
 
 /****************
  * Process Blob - OpenCV & colorblob image processing
 *****************/
-void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg)
+void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg)
 {
   if (sendMockHardwareTransform(blobPos))
     return;
