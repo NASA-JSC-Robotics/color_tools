@@ -20,12 +20,17 @@ ColorBlobCentroid::ColorBlobCentroid()
   , m_continuousColor(false)
   , m_mockHardware(false)
   , m_showImage(false)
+  , m_desiredBlob(0)
 {
   initialize();
 }
 
 ColorBlobCentroid::~ColorBlobCentroid(){}
 
+
+/****************
+ * Initialize - Grab ROS params and start services/subscribers/image callback
+*****************/
 void ColorBlobCentroid::initialize()
 {
   m_imageQos.keep_last(10);
@@ -113,44 +118,10 @@ bool ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStampe
 }
 
 /****************
- * Process Contour- uses moment of a contour for image markup and output
+ * Output Contour- given a contours caluclations, prepare it for output, and publish transform
 *****************/
-void ColorBlobCentroid::processContour(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg, cv::Point2f momentPt, cv::RotatedRect rotRect)
+void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg, double worldX, double worldY, double depth, double angle)
 {
-  //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of blob"
-  double height = std::max(rotRect.size.height,rotRect.size.width);
-  double width = std::min(rotRect.size.height,rotRect.size.width);
-  double angle;
-  angle = rotRect.angle;
-  if (rotRect.size.height > rotRect.size.width)
-    angle -= 90;
-  if (angle < 0)
-    angle+=180; //prevents 180 degreees inversion of gripper for rotation
-
-  circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
-  putText(m_colorImage, std::to_string(m_blobNum), cv::Point2f(momentPt.x - 10, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-  m_blobNum++;
-  //Depth image stuff
-  double depth = m_depthImage.at<float>(momentPt);
-  double worldX = (momentPt.x-m_imageInfo.k.at(2)) * (depth/m_imageInfo.k.at(0)); // (x' - cx) * (depth/focal length x) --- where x' is image x in pixels and cx is center of image x from camera image
-  double worldY = (momentPt.y-m_imageInfo.k.at(5)) * (depth/m_imageInfo.k.at(4)); // (y' - cy) * (depth/focal length y) --- where y' is image y in pixels and cy is center of image y from camera image
-  if (m_debugMode)
-  {
-    std::string boxAR = "AR: " + std::to_string((width / height)) + " angle: " + std::to_string(angle);
-    std::string boxSize = "W: " + std::to_string(int(width)) + " H:" + std::to_string(int(height));
-    //putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 50, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-    putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 50, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-
-    std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
-    //putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 50, momentPt.y + 40),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-  }
-
-  if (depth == 0.0) //if the depth camera is too close to the object, dont publish transforms
-    {
-      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ERROR - Depth Camera too close/far from object.");
-      return;
-    }
-
   //rotate frame according to long axis -- 90 degrees offset to make  the "vertical long axis" the 0-degree rotation. the gripper opens horizonally, should not need to rotate when object is vertically oriented as thats the correct orientation for grasp.
   tf2::Quaternion longAxis;
   longAxis.setRPY(0,0,((angle-90)*CV_PI/180));
@@ -192,6 +163,60 @@ void ColorBlobCentroid::processContour(geometry_msgs::msg::PoseStamped &blobPos,
   ts.transform.translation.y = blobPos.pose.position.y;
   ts.transform.translation.z = blobPos.pose.position.z;
   m_tfBroadcasterPtr->sendTransform(ts);
+}
+
+/****************
+ * Process Contour- uses moment of a contour for image markup and output
+*****************/
+void ColorBlobCentroid::processContour(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg, cv::Point2f momentPt, cv::RotatedRect rotRect)
+{
+  //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of blob"
+  double height = std::max(rotRect.size.height,rotRect.size.width);
+  double width = std::min(rotRect.size.height,rotRect.size.width);
+  double angle;
+  angle = rotRect.angle;
+  if (rotRect.size.height > rotRect.size.width)
+    angle -= 90;
+  if (angle < 0)
+    angle+=180; //prevents 180 degreees inversion of gripper for rotation
+
+  //set blob text color based on desired blob
+  bool doOutput = (m_desiredBlob == m_blobNum);
+  cv::Scalar color;
+  if(doOutput)
+    color = cv::Scalar(100,250,100);
+  else
+    color = cv::Scalar(255,255,255);
+
+
+  circle(m_colorImage, momentPt, 5, color, -1);
+  putText(m_colorImage, std::to_string(m_blobNum), cv::Point2f(momentPt.x - 10, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
+  m_blobNum++;
+  //Depth image stuff
+  double depth = m_depthImage.at<float>(momentPt);
+  double worldX = (momentPt.x-m_imageInfo.k.at(2)) * (depth/m_imageInfo.k.at(0)); // (x' - cx) * (depth/focal length x) --- where x' is image x in pixels and cx is center of image x from camera image
+  double worldY = (momentPt.y-m_imageInfo.k.at(5)) * (depth/m_imageInfo.k.at(4)); // (y' - cy) * (depth/focal length y) --- where y' is image y in pixels and cy is center of image y from camera image
+  if (m_debugMode)
+  {
+    std::string boxAR = "AR: " + std::to_string((width / height)) + " angle: " + std::to_string(angle);
+    std::string boxSize = "W: " + std::to_string(int(width)) + " H:" + std::to_string(int(height));
+    //putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 50, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
+    putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 50, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
+
+    std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
+    //putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 50, momentPt.y + 40),cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
+  }
+
+  if (doOutput && depth == 0.0) //if the depth camera is too close to the object, dont publish transforms
+    {
+      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ERROR - Depth Camera too close/far from object.");
+      return;
+    }
+
+  //if this is the chosen blob (default blob 0), output blob
+  if(doOutput)
+    ColorBlobCentroid::outputContour(blobPos, blobImg, worldX, worldY, depth, angle);
+
 }
 
 bool ColorBlobCentroid::checkValidContour(cv::RotatedRect rotRect)
@@ -380,7 +405,7 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos, se
     cv::RotatedRect rotRect = minAreaRect(contours[i]);
     if (ColorBlobCentroid::checkValidContour(rotRect))
     {
-      drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(0, 255, 255), 1, 8);
+      drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(0, 255, 255), 1, cv::LINE_8);
       // calculate x,y coordinate of centroid
       cv::Moments moment = moments(contours[i]);
       if (moment.m00 != 0)
