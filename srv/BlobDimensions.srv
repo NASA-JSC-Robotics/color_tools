@@ -1,3 +1,4 @@
+uint8 desired_blob              # Desired Blob index. Default is 0 
 float64 aspect_ratio            # Aspect ratio of the color blob  
 float64 aspect_ratio_threshold  # Threshold +/- the given aspect ratio to still look for object
 float64 size                    # expected blob length size to filter out similar aspect ratio noise blobs

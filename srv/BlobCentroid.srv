@@ -1,3 +1,4 @@
+uint8 desired_blob              # Desired Blob index. Default is 0 
 float64 min_blob_size           # Minimum size of width or height of object in pixels to be searched for
 string color                    # color of the mask to use
 ---
