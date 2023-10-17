@@ -74,7 +74,7 @@ void ColorBlobCentroid::initialize()
 }
 
 /****************
- * Mock Hardware - for when testing color blob on system without use of a camera
+ * Mock Hardware - Helper for when testing color blob on system without use of a camera
 *****************/
 bool ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStamped &blobPos)
 {
@@ -112,6 +112,115 @@ bool ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStampe
       return false;
 }
 
+/****************
+ * Process Contour- uses moment of a contour for image markup and output
+*****************/
+void ColorBlobCentroid::processContour(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg, cv::Point2f momentPt, cv::RotatedRect rotRect)
+{
+  //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of blob"
+  double height = std::max(rotRect.size.height,rotRect.size.width);
+  double width = std::min(rotRect.size.height,rotRect.size.width);
+  double angle;
+  angle = rotRect.angle;
+  if (rotRect.size.height > rotRect.size.width)
+    angle -= 90;
+  if (angle < 0)
+    angle+=180; //prevents 180 degreees inversion of gripper for rotation
+
+  circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
+  putText(m_colorImage, std::to_string(m_blobNum), cv::Point2f(momentPt.x - 10, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+  m_blobNum++;
+  //Depth image stuff
+  double depth = m_depthImage.at<float>(momentPt);
+  double worldX = (momentPt.x-m_imageInfo.k.at(2)) * (depth/m_imageInfo.k.at(0)); // (x' - cx) * (depth/focal length x) --- where x' is image x in pixels and cx is center of image x from camera image
+  double worldY = (momentPt.y-m_imageInfo.k.at(5)) * (depth/m_imageInfo.k.at(4)); // (y' - cy) * (depth/focal length y) --- where y' is image y in pixels and cy is center of image y from camera image
+  if (m_debugMode)
+  {
+    std::string boxAR = "AR: " + std::to_string((width / height)) + " angle: " + std::to_string(angle);
+    std::string boxSize = "W: " + std::to_string(int(width)) + " H:" + std::to_string(int(height));
+    //putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 50, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+    putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 50, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+
+    std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
+    //putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 50, momentPt.y + 40),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
+  }
+
+  if (depth == 0.0) //if the depth camera is too close to the object, dont publish transforms
+    {
+      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ERROR - Depth Camera too close/far from object.");
+      return;
+    }
+
+  //rotate frame according to long axis -- 90 degrees offset to make  the "vertical long axis" the 0-degree rotation. the gripper opens horizonally, should not need to rotate when object is vertically oriented as thats the correct orientation for grasp.
+  tf2::Quaternion longAxis;
+  longAxis.setRPY(0,0,((angle-90)*CV_PI/180));
+  longAxis.normalize();
+
+  //transform data to be published
+  geometry_msgs::msg::Quaternion quat;
+  quat = tf2::toMsg(longAxis);
+
+  rclcpp::Time now = this->get_clock()->now();
+  //set output for service call
+  blobPos.header.frame_id = std::string(m_prefix + "_color_optical_frame");
+  blobPos.header.stamp = now;
+  blobPos.pose.position.x = worldX;
+  blobPos.pose.position.y = worldY;
+  blobPos.pose.position.z = depth;
+  blobPos.pose.orientation.x = longAxis.x();
+  blobPos.pose.orientation.y = longAxis.y();
+  blobPos.pose.orientation.z = longAxis.z();
+  blobPos.pose.orientation.w = longAxis.w();
+
+  //img output
+  cv_bridge::CvImage out_img;
+  out_img.header = blobPos.header;
+  out_img.image = m_colorImage;
+  blobImg = *out_img.toImageMsg().get();
+
+  //create and publish tf message
+  geometry_msgs::msg::TransformStamped ts;
+  ts.header.frame_id = std::string(m_prefix + "_color_optical_frame");
+
+  ts.header.stamp = now;
+  ts.child_frame_id= std::string("colorblob_xd");
+  ts.transform.rotation.x = blobPos.pose.orientation.x;
+  ts.transform.rotation.y = blobPos.pose.orientation.y;
+  ts.transform.rotation.z = blobPos.pose.orientation.z;
+  ts.transform.rotation.w = blobPos.pose.orientation.w;
+  ts.transform.translation.x = blobPos.pose.position.x;
+  ts.transform.translation.y = blobPos.pose.position.y;
+  ts.transform.translation.z = blobPos.pose.position.z;
+  m_tfBroadcasterPtr->sendTransform(ts);
+}
+
+bool ColorBlobCentroid::checkValidContour(cv::RotatedRect rotRect)
+{
+  //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of blob"
+  double height = std::max(rotRect.size.height,rotRect.size.width);
+  double width = std::min(rotRect.size.height,rotRect.size.width);
+
+  //Determine if this contour is within thresholds specified by service
+  // if aspect ratio is set to something specific for testing, only process those nodes
+  // (Aspect/Size == -1) to process all contours that appear
+  bool processContour = false;
+  if ((m_blobAspectRatio == -1 &&  m_blobSize == -1 ) || (m_blobAspectRatio == 0 &&  m_blobSize == 0 ))
+  {
+    //eliminate noisey shadows
+    if(height > m_minBlobSize && width > m_minBlobSize)
+        processContour = true;
+  }
+  // if aspect ratio exists and is within threshold of what is expected.
+  if (m_blobAspectRatio != -1 && (width / height) < (m_blobAspectRatio + m_blobARThreshold/2) &&  (width / height) > (m_blobAspectRatio - m_blobARThreshold/2))
+  {
+    // if size exists and meets min size requirement (close enough that it is not considered random noise)
+    if(m_blobSize != -1 && height > m_minBlobSize && width > m_minBlobSize && height > (m_blobSize-m_blobSizeThreshold) && height < (m_blobSize + m_blobSizeThreshold))
+    {
+        processContour = true;
+    }
+  }
+  return processContour;
+}
 /****************
  * Color Blob Find Service - minimalist service call to get color, only uses blob size and blob color
 *****************/
@@ -238,7 +347,7 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos, se
 {
   if (sendMockHardwareTransform(blobPos))
     return;
-    
+
   if (m_colorImage.empty())
   {
     RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ERROR - No image. Check that image topics exist and data is flowing.");
@@ -269,115 +378,14 @@ void ColorBlobCentroid::processBlob(geometry_msgs::msg::PoseStamped &blobPos, se
   {
     // draw Rotated Rect
     cv::RotatedRect rotRect = minAreaRect(contours[i]);
-
-    //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of blob"
-    double height = std::max(rotRect.size.height,rotRect.size.width);
-    double width = std::min(rotRect.size.height,rotRect.size.width);
-    double angle;
-    angle = rotRect.angle;
-    if (rotRect.size.height > rotRect.size.width)
-      angle -= 90;
-    if (angle < 0)
-      angle+=180; //prevents 180 degreees inversion of gripper for rotation
-
-    // if aspect ratio is set to something specific for testing, only process those nodes
-    bool processContour = false;
-    if ((m_blobAspectRatio == -1 &&  m_blobSize == -1 ) || (m_blobAspectRatio == 0 &&  m_blobSize == 0 ))
+    if (ColorBlobCentroid::checkValidContour(rotRect))
     {
-      //eliminate noisey shadows
-      if(height > m_minBlobSize && width > m_minBlobSize)
-          processContour = true;
-    }
-    // if aspect ratio exists and is within threshold of what is expected.
-    if (m_blobAspectRatio != -1 && (width / height) < (m_blobAspectRatio + m_blobARThreshold/2) &&  (width / height) > (m_blobAspectRatio - m_blobARThreshold/2))
-    {
-      // if size exists and meets min size requirement (close enough that it is not considered random noise)
-      if(m_blobSize != -1 && height > m_minBlobSize && width > m_minBlobSize && height > (m_blobSize-m_blobSizeThreshold) && height < (m_blobSize + m_blobSizeThreshold))
-      {
-          processContour = true;
-      }
-    }
-
-
-    // default behavior (Aspect/Size == -1) is to process all contours that appear
-    if (processContour)
-    {
-
       drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(0, 255, 255), 1, 8);
       // calculate x,y coordinate of centroid
       cv::Moments moment = moments(contours[i]);
-      cv::Point2f momentPt;
       if (moment.m00 != 0)
       { 
-
-        momentPt = cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
-        circle(m_colorImage, momentPt, 5, cv::Scalar(255, 255, 255), -1);
-        putText(m_colorImage, std::to_string(m_blobNum), cv::Point2f(momentPt.x - 10, momentPt.y - 25),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-        m_blobNum++;
-        //Depth image stuff
-        double depth = m_depthImage.at<float>(momentPt);
-        double worldX = (momentPt.x-m_imageInfo.k.at(2)) * (depth/m_imageInfo.k.at(0)); // (x' - cx) * (depth/focal length x) --- where x' is image x in pixels and cx is center of image x from camera image
-        double worldY = (momentPt.y-m_imageInfo.k.at(5)) * (depth/m_imageInfo.k.at(4)); // (y' - cy) * (depth/focal length y) --- where y' is image y in pixels and cy is center of image y from camera image
-        if (m_debugMode)
-        {
-          std::string boxAR = "AR: " + std::to_string((width / height)) + " angle: " + std::to_string(angle);
-          std::string boxSize = "W: " + std::to_string(int(width)) + " H:" + std::to_string(int(height));
-          //putText(m_colorImage, boxAR, cv::Point2f(momentPt.x - 50, momentPt.y - 10),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-          putText(m_colorImage, boxSize, cv::Point2f(momentPt.x - 50, momentPt.y + 20),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-
-          std::string worldPos = "world X:" + std::to_string(worldX) + " world Y:" + std::to_string(worldY) + " world Z:" + std::to_string(depth);
-          //putText(m_colorImage, worldPos, cv::Point2f(momentPt.x - 50, momentPt.y + 40),cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
-        }
-
-        if (depth == 0.0) //if the depth camera is too close to the object, dont publish transforms
-          {
-            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ERROR - Depth Camera too close/far from object.");
-            continue;
-          }
-
-        //rotate frame according to long axis -- 90 degrees offset to make  the "vertical long axis" the 0-degree rotation. the gripper opens horizonally, should not need to rotate when object is vertically oriented as thats the correct orientation for grasp.
-        tf2::Quaternion longAxis;
-        longAxis.setRPY(0,0,((angle-90)*CV_PI/180));
-        longAxis.normalize();
-
-        //transform data to be published
-        geometry_msgs::msg::Quaternion quat;
-        quat = tf2::toMsg(longAxis);
-
-        rclcpp::Time now = this->get_clock()->now();
-        //set output for service call
-        blobPos.header.frame_id = std::string(m_prefix + "_color_optical_frame");
-        blobPos.header.stamp = now;
-        blobPos.pose.position.x = worldX;
-        blobPos.pose.position.y = worldY;
-        blobPos.pose.position.z = depth;
-        blobPos.pose.orientation.x = longAxis.x();
-        blobPos.pose.orientation.y = longAxis.y();
-        blobPos.pose.orientation.z = longAxis.z();
-        blobPos.pose.orientation.w = longAxis.w();
-
-        //img output
-        //m_colorImage = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
-        cv_bridge::CvImage out_img;
-
-        out_img.header = blobPos.header;
-        out_img.image = m_colorImage;
-        blobImg = *out_img.toImageMsg().get();
-
-        //create and publish tf message
-        geometry_msgs::msg::TransformStamped ts;
-        ts.header.frame_id = std::string(m_prefix + "_color_optical_frame");
-
-        ts.header.stamp = now;
-        ts.child_frame_id= std::string("colorblob_xd");
-        ts.transform.rotation.x = blobPos.pose.orientation.x;
-        ts.transform.rotation.y = blobPos.pose.orientation.y;
-        ts.transform.rotation.z = blobPos.pose.orientation.z;
-        ts.transform.rotation.w = blobPos.pose.orientation.w;
-        ts.transform.translation.x = blobPos.pose.position.x;
-        ts.transform.translation.y = blobPos.pose.position.y;
-        ts.transform.translation.z = blobPos.pose.position.z;
-        m_tfBroadcasterPtr->sendTransform(ts);
+        ColorBlobCentroid::processContour(blobPos,blobImg,cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00)),rotRect);
       }
     }
   }
