@@ -303,8 +303,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
   m_blobARThreshold = request->aspect_ratio_threshold;
   m_blobSize = request->size;
   m_blobSizeThreshold = request->size_threshold;
-  if (request->desired_blob != NULL) //change desired blob index if given new one
-    m_desiredBlob = request->desired_blob;
+  m_desiredBlob = request->desired_blob;
   if (request->color != "") //change color if given new one
     m_color = request->color;
   if (request->prefix != "") //if new topic given, change image topic subscribers
