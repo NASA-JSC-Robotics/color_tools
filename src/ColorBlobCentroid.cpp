@@ -184,7 +184,7 @@ void ColorBlobCentroid::processContour(geometry_msgs::msg::PoseStamped &blobPos,
   bool doOutput = (m_desiredBlob == m_blobNum);
   cv::Scalar color;
   if(doOutput)
-    color = cv::Scalar(100,250,100);
+    color = cv::Scalar(70,255,70);
   else
     color = cv::Scalar(255,255,255);
 
@@ -407,6 +407,8 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, s
     cv::RotatedRect rotRect = minAreaRect(contours[i]);
     if (ColorBlobCentroid::checkValidContour(rotRect))
     {
+      if (m_desiredBlob == m_blobNum)
+        drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(50, 200, 50), 4, cv::LINE_8);
       drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(0, 255, 255), 1, cv::LINE_8);
       // calculate x,y coordinate of centroid
       cv::Moments moment = moments(contours[i]);
