@@ -69,6 +69,7 @@ private:
     rclcpp::Service<dex_ivr_interfaces::srv::BlobCentroid>::SharedPtr m_color_simple_srv; //configures the parameters of the color blob detection: min blob size and color
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr m_processing_srv; //turn on/off continuous image processing
 
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_imagePub;
     message_filters::Subscriber<sensor_msgs::msg::Image> m_depthImageSub;
     message_filters::Subscriber<sensor_msgs::msg::Image> m_colorImageSub;
     message_filters::Subscriber<sensor_msgs::msg::CameraInfo> m_colorInfoSub;

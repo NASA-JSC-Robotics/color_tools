@@ -68,6 +68,7 @@ void ColorBlobCentroid::initialize()
   m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("color_set_blob_dimensions", std::bind(&ColorBlobCentroid::color_set_blob_dimensions, this, _1, _2));
   m_color_simple_srv = this->create_service<dex_ivr_interfaces::srv::BlobCentroid>("color_blob_find", std::bind(&ColorBlobCentroid::color_blob_find, this, _1, _2));
   m_processing_srv = this->create_service<std_srvs::srv::SetBool>("color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
+  m_imagePub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_image", 10);
   m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
   m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
   m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/color/camera_info", m_imageQos.get_rmw_qos_profile());
@@ -272,6 +273,7 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
   processBlobs(blobPos, blobImg);
   response->centroid_pose = blobPos;
   response->img = blobImg;
+  m_imagePub->publish(blobImg);
   if (blobPos.header.frame_id != "")
   { 
     std::string output = "Object found at " + std::to_string(blobPos.pose.position.x) + ", " + std::to_string(blobPos.pose.position.y) + ", " + std::to_string(blobPos.pose.position.z) + ", " + " angled: " + std::to_string(blobPos.pose.orientation.x) + ", "+ std::to_string(blobPos.pose.orientation.y) + ", "+ std::to_string(blobPos.pose.orientation.z) + ", "+ std::to_string(blobPos.pose.orientation.w) + "\n\n";
@@ -318,6 +320,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
   processBlobs(blobPos, blobImg);
   response->centroid_pose = blobPos;
   response->img = blobImg;
+  m_imagePub->publish(blobImg);
   if (blobPos.header.frame_id != "")
   { 
     std::string output = "Object found at " + std::to_string(blobPos.pose.position.x) + ", " + std::to_string(blobPos.pose.position.y) + ", " + std::to_string(blobPos.pose.position.z) + ", " + " angled: " + std::to_string(blobPos.pose.orientation.x) + ", "+ std::to_string(blobPos.pose.orientation.y) + ", "+ std::to_string(blobPos.pose.orientation.z) + ", "+ std::to_string(blobPos.pose.orientation.w) + "\n\n";
