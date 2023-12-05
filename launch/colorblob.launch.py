@@ -32,7 +32,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "continuous_output",
-            default_value='false',
+            default_value='true',
             description="continually output the transform when color blob is visible instead of once per service call",
         )
     )
@@ -40,23 +40,23 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "show_image",
-            default_value='false',
+            default_value='true',
             description="Show an image from the camera - only available if mock_harware is false",
         )
     )
 
     declared_arguments.append(
         DeclareLaunchArgument(
-            "show_image_color",
+            "debug",
             default_value='false',
-            description="Show the underlying color segmentation from the camera - only available if mock_harware is false",
+            description="Show the underlying color segmentation from the camera, Shows world coords and blob size - only available if mock_harware is false",
         )
     )
 
     prefix = LaunchConfiguration("prefix")
     mock_hw = LaunchConfiguration("mock_hardware")
     show_img = LaunchConfiguration("show_image")
-    show_img_color = LaunchConfiguration("show_image_color")
+    debug = LaunchConfiguration("debug")
     cont_output = LaunchConfiguration("continuous_output")
 
     colorblob_node = Node(
@@ -69,7 +69,7 @@ def generate_launch_description():
                 "prefix":prefix,
                 "mock_hardware":mock_hw,
                 "show_image":show_img,
-                "show_image_color":show_img_color,
+                "debug":debug,
                 "continuous_output":cont_output,
             }
         ],
