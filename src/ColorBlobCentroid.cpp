@@ -278,6 +278,7 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
   processBlobs(blobPos, blobImg, maskImg);
   response->centroid_pose = blobPos;
   response->img = blobImg;
+  response->mask = maskImg;
   m_imagePub->publish(blobImg);
   m_maskPub->publish(maskImg);
   if (blobPos.header.frame_id != "")
@@ -326,6 +327,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
   processBlobs(blobPos, blobImg, maskImg);
   response->centroid_pose = blobPos;
   response->img = blobImg;
+  response->mask = maskImg;
   m_imagePub->publish(blobImg);
   m_maskPub->publish(maskImg);
   if (blobPos.header.frame_id != "")
