@@ -69,6 +69,7 @@ void ColorBlobCentroid::initialize()
   m_color_simple_srv = this->create_service<dex_ivr_interfaces::srv::BlobCentroid>("color_blob_find", std::bind(&ColorBlobCentroid::color_blob_find, this, _1, _2));
   m_processing_srv = this->create_service<std_srvs::srv::SetBool>("color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
   m_imagePub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_image", 10);
+  
   m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
   m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
   m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/color/camera_info", m_imageQos.get_rmw_qos_profile());
@@ -396,6 +397,7 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, s
   //dilates to fill in noise inside object of interest and make it solid. erode to restore object to proper size
   dilate(dilated, dilated, m_morphology);
   erode(dilated, eroded, m_morphology);
+  m_mask.setTo(cv::Scalar(0,0,0));
 
   std::vector<std::vector<cv::Point>> contours;
   std::vector<cv::Vec4i> hierarchy; 
@@ -412,12 +414,11 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, s
       if (m_desiredBlob == m_blobNum)
       {
         drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(50, 200, 50), 4, cv::LINE_8);
+        drawContours(m_mask, contours, i, cv::Scalar(255, 255, 255), cv::FILLED, cv::LINE_8);
       }
       else
       {
         drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(0, 255, 255), 1, cv::LINE_8);
-        drawContours(dilated, contours, i, cv::Scalar(0, 0, 0), cv::FILLED, cv::LINE_8);
-        drawContours(dilated, contours, i, cv::Scalar(0, 0, 0), cv::LINE_8, cv::LINE_8);
       }
       // calculate x,y coordinate of centroid
       cv::Moments moment = moments(contours[i]);
@@ -434,7 +435,7 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, s
     if (m_debugMode)
     {
       cv::imshow("color segmentation", eroded);
-      cv::imshow("wahah", dilated);
+      cv::imshow("color blob mask", m_mask);
 
     }
   }
