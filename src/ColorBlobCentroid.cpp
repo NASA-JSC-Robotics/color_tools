@@ -145,10 +145,9 @@ void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped &blobPos, 
   blobPos.pose.orientation.w = longAxis.w();
 
   //img output
-  cv_bridge::CvImage out_img;
-  out_img.header = blobPos.header;
-  out_img.image = m_colorImage;
-  blobImg = *out_img.toImageMsg().get();
+  cv_bridge::CvImage img_bridge;
+  img_bridge = cv_bridge::CvImage(blobPos.header, sensor_msgs::image_encodings::BGR8, m_colorImage);
+  img_bridge.toImageMsg(blobImg); // from cv_bridge to sensor_msgs::Image
 
   //create and publish tf message
   geometry_msgs::msg::TransformStamped ts;
@@ -411,8 +410,15 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, s
     if (ColorBlobCentroid::checkValidContour(rotRect))
     {
       if (m_desiredBlob == m_blobNum)
+      {
         drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(50, 200, 50), 4, cv::LINE_8);
-      drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(0, 255, 255), 1, cv::LINE_8);
+      }
+      else
+      {
+        drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(0, 255, 255), 1, cv::LINE_8);
+        drawContours(dilated, contours, i, cv::Scalar(0, 0, 0), cv::FILLED, cv::LINE_8);
+        drawContours(dilated, contours, i, cv::Scalar(0, 0, 0), cv::LINE_8, cv::LINE_8);
+      }
       // calculate x,y coordinate of centroid
       cv::Moments moment = moments(contours[i]);
       if (moment.m00 != 0)
@@ -426,7 +432,11 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, s
   {
     cv::imshow("img", m_colorImage);
     if (m_debugMode)
+    {
       cv::imshow("color segmentation", eroded);
+      cv::imshow("wahah", dilated);
+
+    }
   }
     cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
 }
