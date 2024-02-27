@@ -444,8 +444,6 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, s
     if (m_debugMode)
     {
       cv::imshow("color segmentation", eroded);
-      cv::imshow("color blob mask", m_mask);
-
     }
   }
     cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
