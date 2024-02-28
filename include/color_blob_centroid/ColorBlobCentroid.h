@@ -69,8 +69,12 @@ private:
     rclcpp::Service<dex_ivr_interfaces::srv::BlobCentroid>::SharedPtr m_color_simple_srv; //configures the parameters of the color blob detection: min blob size and color
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr m_processing_srv; //turn on/off continuous image processing
 
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_imagePub;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_maskPub;
+    // NOTE: for Emma/future parties wondering why we bother publishing a one-time image out on topics.
+    // They are published so that the data is captured in ROSBAG because service calls and results are not captured
+    // So the exact frame used for colorblob would be lost on replay, this allows you to diagnose/recompute/reinterpret with correct images.
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_imagePub; // markup image (whats shown to user with blobs circled in green)
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_imageRawPub; // raw frame used for color blob detection with no markup
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_maskPub; // mask of color, **NOTE** closed contours of color will FILL the contour!! A ring of color will output a filled circle of a mask!
     message_filters::Subscriber<sensor_msgs::msg::Image> m_depthImageSub;
     message_filters::Subscriber<sensor_msgs::msg::Image> m_colorImageSub;
     message_filters::Subscriber<sensor_msgs::msg::CameraInfo> m_colorInfoSub;
@@ -80,6 +84,7 @@ private:
     cv::Mat m_mask;
     ColorNames m_colorNames;
     cv::Mat m_colorImage;
+    cv::Mat m_colorImageRaw;
     cv::Mat m_depthImage;
     cv::Mat m_morphology;
     //Service call thresholds

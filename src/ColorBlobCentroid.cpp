@@ -69,6 +69,7 @@ void ColorBlobCentroid::initialize()
   m_color_simple_srv = this->create_service<dex_ivr_interfaces::srv::BlobCentroid>("color_blob_find", std::bind(&ColorBlobCentroid::color_blob_find, this, _1, _2));
   m_processing_srv = this->create_service<std_srvs::srv::SetBool>("color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
   m_imagePub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_image", 10);
+  m_imageRawPub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_image_raw", 10);
   m_maskPub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_mask", 10);
 
   m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
@@ -393,6 +394,7 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, s
     return;
   }
 
+  m_colorImage.copyTo(m_colorImageRaw);
   m_blobNum = 0;
   m_mask = 0;
   m_colorNames.createColorMask(m_colorImage, m_color, m_mask);
