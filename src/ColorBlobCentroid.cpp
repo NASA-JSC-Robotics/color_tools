@@ -124,11 +124,12 @@ bool ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStampe
 /****************
  * Convert cv Image to ROS Image - Given ros header, image encoding, opencv matrix, convert to sensor_msgs::Image
 *****************/
-void ColorBlobCentroid::convertImageToROS( std_msgs::msg::Header header, cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output)
+void ColorBlobCentroid::convertImageToROS(cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output)
 {
   //convert cv images to ROS images
   //img output
   cv_bridge::CvImage img_bridge;
+  std_msgs::msg::Header header;
   img_bridge = cv_bridge::CvImage(header, encoding, input);
   img_bridge.toImageMsg(output); // from cv_bridge to sensor_msgs::Image
 }
@@ -282,10 +283,13 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
   response->centroid_pose = blobPos;
 
   //final image conversion for output
-  sensor_msgs::msg::Image blobImg, rawImg, maskImg;
-  convertImageToROS(blobPos.header, m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
-  convertImageToROS(blobPos.header, m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
-  convertImageToROS(blobPos.header, m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
+  sensor_msgs::msg::Image blobImg, maskImg, rawImg;
+  convertImageToROS(m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
+  convertImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
+  convertImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
+  blobImg.header = blobPos.header;
+  rawImg.header = blobPos.header;
+  maskImg.header = blobPos.header;
   response->img = blobImg;
   response->img_raw = rawImg;
   response->mask = maskImg;
@@ -339,10 +343,13 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
   response->centroid_pose = blobPos;
 
   //final image conversion for output
-  sensor_msgs::msg::Image blobImg, rawImg, maskImg;
-  convertImageToROS(blobPos.header, m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
-  convertImageToROS(blobPos.header, m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
-  convertImageToROS(blobPos.header, m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
+  sensor_msgs::msg::Image blobImg, maskImg, rawImg;
+  convertImageToROS(m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
+  convertImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
+  convertImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
+  blobImg.header = blobPos.header;
+  rawImg.header = blobPos.header;
+  maskImg.header = blobPos.header;
   response->img = blobImg;
   response->img_raw = rawImg;
   response->mask = maskImg;
@@ -377,6 +384,7 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
                                          const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
 {
   m_colorImage = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
+  m_colorImageRaw = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
   m_depthImage = cv::Mat(cv_bridge::toCvCopy(depthImMsgA)->image);
   m_imageInfo = *infoMsgA;
   if(m_depthImage.type() != CV_32FC1)
@@ -412,7 +420,6 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos)
     return;
   }
 
-  m_colorImage.copyTo(m_colorImageRaw);
   m_blobNum = 0;
   m_mask = 0;
   m_colorNames.createColorMask(m_colorImage, m_color, m_mask);
@@ -464,7 +471,6 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos)
     if (m_debugMode)
     {
       cv::imshow("color segmentation", eroded);
-      cv::imshow("color raw", m_colorImageRaw);
     }
   }
     cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
