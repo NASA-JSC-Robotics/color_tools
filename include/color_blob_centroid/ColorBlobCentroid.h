@@ -41,9 +41,10 @@ private:
     void initialize();
     /* Helper */
     bool sendMockHardwareTransform(geometry_msgs::msg::PoseStamped &blobPos); //makes fake transform position 0.5 units Z direction from camera optical frame
-    void processContour(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg, sensor_msgs::msg::Image &maskImg, cv::Point2f momentPt, cv::RotatedRect rotRect); //calculates final realworld coordinates of specific contour, writes data to image
+    void processContour(geometry_msgs::msg::PoseStamped &blobPos, cv::Point2f momentPt, cv::RotatedRect rotRect); //calculates final realworld coordinates of specific contour, writes data to image
     bool checkValidContour(cv::RotatedRect rotRect); //verify that a contour is within thresholds set by services
-    void outputContour(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg, sensor_msgs::msg::Image &maskImg, double worldX, double worldY, double depth, double angle); //using computed blob metrics, output for service using first two parameters, and publish transform of blob location
+    void outputContour(geometry_msgs::msg::PoseStamped &blobPos, double worldX, double worldY, double depth, double angle); //using computed blob metrics, output for service using first two parameters, and publish transform of blob location
+    void convertImageToROS(std_msgs::msg::Header header, cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output); //given a header, cv::Mat, and image encoding, create a ROS image 
     /* Services */
     void color_blob_find(const std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Request> request,
       std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Response>      response);
@@ -54,7 +55,7 @@ private:
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
-    void processBlobs(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg, sensor_msgs::msg::Image &maskImg); //iterates through all color blobs in image and filters them with openCV & the thresholds specified by service
+    void processBlobs(geometry_msgs::msg::PoseStamped &blobPos); //iterates through all color blobs in image and filters them with openCV & the thresholds specified by service
 
     //Blob filtering parameters to maintain between service calls
     double m_minBlobSize;
