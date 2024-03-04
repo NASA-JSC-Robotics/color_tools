@@ -124,7 +124,7 @@ bool ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStampe
 /****************
  * Convert cv Image to ROS Image - Given ros header, image encoding, opencv matrix, convert to sensor_msgs::Image
 *****************/
-void ColorBlobCentroid::convertImageToROS(cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output)
+void ColorBlobCentroid::convertCVImageToROS(cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output)
 {
   //convert cv images to ROS images
   //img output
@@ -284,9 +284,9 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
 
   //final image conversion for output
   sensor_msgs::msg::Image blobImg, maskImg, rawImg;
-  convertImageToROS(m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
-  convertImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
-  convertImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
+  convertCVImageToROS(m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
+  convertCVImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
+  convertCVImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
   blobImg.header = blobPos.header;
   rawImg.header = blobPos.header;
   maskImg.header = blobPos.header;
@@ -344,9 +344,9 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
 
   //final image conversion for output
   sensor_msgs::msg::Image blobImg, maskImg, rawImg;
-  convertImageToROS(m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
-  convertImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
-  convertImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
+  convertCVImageToROS(m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
+  convertCVImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
+  convertCVImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
   blobImg.header = blobPos.header;
   rawImg.header = blobPos.header;
   maskImg.header = blobPos.header;

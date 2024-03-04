@@ -44,7 +44,7 @@ private:
     void processContour(geometry_msgs::msg::PoseStamped &blobPos, cv::Point2f momentPt, cv::RotatedRect rotRect); //calculates final realworld coordinates of specific contour, writes data to image
     bool checkValidContour(cv::RotatedRect rotRect); //verify that a contour is within thresholds set by services
     void outputContour(geometry_msgs::msg::PoseStamped &blobPos, double worldX, double worldY, double depth, double angle); //using computed blob metrics, output for service using first two parameters, and publish transform of blob location
-    void convertImageToROS(cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output); //given a header, cv::Mat, and image encoding, create a ROS image 
+    void convertCVImageToROS(cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output); //given a header, cv::Mat, and image encoding, create a ROS image 
     /* Services */
     void color_blob_find(const std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Request> request,
       std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Response>      response);
