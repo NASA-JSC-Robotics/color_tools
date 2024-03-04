@@ -4,4 +4,5 @@ string color "red"                  # color of the mask to use
 ---
 geometry_msgs/PoseStamped centroid_pose 
 sensor_msgs/Image img
+sensor_msgs/Image img_raw
 sensor_msgs/Image mask
