@@ -69,6 +69,9 @@ void ColorBlobCentroid::initialize()
   m_color_simple_srv = this->create_service<dex_ivr_interfaces::srv::BlobCentroid>("color_blob_find", std::bind(&ColorBlobCentroid::color_blob_find, this, _1, _2));
   m_processing_srv = this->create_service<std_srvs::srv::SetBool>("color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
   m_imagePub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_image", 10);
+  m_imageRawPub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_image_raw", 10);
+  m_maskPub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_mask", 10);
+
   m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
   m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
   m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/color/camera_info", m_imageQos.get_rmw_qos_profile());
@@ -119,9 +122,22 @@ bool ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStampe
 }
 
 /****************
+ * Convert cv Image to ROS Image - Given ros header, image encoding, opencv matrix, convert to sensor_msgs::Image
+*****************/
+void ColorBlobCentroid::convertCVImageToROS(cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output)
+{
+  //convert cv images to ROS images
+  //img output
+  cv_bridge::CvImage img_bridge;
+  std_msgs::msg::Header header;
+  img_bridge = cv_bridge::CvImage(header, encoding, input);
+  img_bridge.toImageMsg(output); // from cv_bridge to sensor_msgs::Image
+}
+
+/****************
  * Output Contour- given a contours caluclations, prepare it for output, and publish transform
 *****************/
-void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg, double worldX, double worldY, double depth, double angle)
+void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped &blobPos, double worldX, double worldY, double depth, double angle)
 {
   //rotate frame according to long axis -- 90 degrees offset to make  the "vertical long axis" the 0-degree rotation. the gripper opens horizonally, should not need to rotate when object is vertically oriented as thats the correct orientation for grasp.
   tf2::Quaternion longAxis;
@@ -144,12 +160,6 @@ void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped &blobPos, 
   blobPos.pose.orientation.z = longAxis.z();
   blobPos.pose.orientation.w = longAxis.w();
 
-  //img output
-  cv_bridge::CvImage out_img;
-  out_img.header = blobPos.header;
-  out_img.image = m_colorImage;
-  blobImg = *out_img.toImageMsg().get();
-
   //create and publish tf message
   geometry_msgs::msg::TransformStamped ts;
   ts.header.frame_id = std::string(m_prefix + "_color_optical_frame");
@@ -169,7 +179,7 @@ void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped &blobPos, 
 /****************
  * Process Contour- uses moment of a contour for image markup and output
 *****************/
-void ColorBlobCentroid::processContour(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg, cv::Point2f momentPt, cv::RotatedRect rotRect)
+void ColorBlobCentroid::processContour(geometry_msgs::msg::PoseStamped &blobPos, cv::Point2f momentPt, cv::RotatedRect rotRect)
 {
   //standardize the height and width regardless of orientation of strip or camera. height is the "longer portion of blob"
   double height = std::max(rotRect.size.height,rotRect.size.width);
@@ -216,7 +226,7 @@ void ColorBlobCentroid::processContour(geometry_msgs::msg::PoseStamped &blobPos,
 
   //if this is the chosen blob (default blob 0), output blob
   if(doOutput)
-    ColorBlobCentroid::outputContour(blobPos, blobImg, worldX, worldY, depth, angle);
+    ColorBlobCentroid::outputContour(blobPos, worldX, worldY, depth, angle);
 
 }
 
@@ -268,12 +278,25 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
 
   std::string req = "Incoming Request -\n\nMin Blob Size: " + std::to_string(m_minBlobSize) + "\nColor: " + m_color + "\nImage prefix: " + m_prefix;
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), req.c_str());
-  
-  sensor_msgs::msg::Image blobImg;
-  processBlobs(blobPos, blobImg);
+
+  processBlobs(blobPos);
   response->centroid_pose = blobPos;
+
+  //final image conversion for output
+  sensor_msgs::msg::Image blobImg, maskImg, rawImg;
+  convertCVImageToROS(m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
+  convertCVImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
+  convertCVImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
+  blobImg.header = blobPos.header;
+  rawImg.header = blobPos.header;
+  maskImg.header = blobPos.header;
   response->img = blobImg;
+  response->img_raw = rawImg;
+  response->mask = maskImg;
   m_imagePub->publish(blobImg);
+  m_imageRawPub->publish(rawImg);
+  m_maskPub->publish(maskImg);
+
   if (blobPos.header.frame_id != "")
   { 
     std::string output = "Object found at " + std::to_string(blobPos.pose.position.x) + ", " + std::to_string(blobPos.pose.position.y) + ", " + std::to_string(blobPos.pose.position.z) + ", " + " angled: " + std::to_string(blobPos.pose.orientation.x) + ", "+ std::to_string(blobPos.pose.orientation.y) + ", "+ std::to_string(blobPos.pose.orientation.z) + ", "+ std::to_string(blobPos.pose.orientation.w) + "\n\n";
@@ -316,11 +339,24 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
     m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/color/camera_info", m_imageQos.get_rmw_qos_profile());
   }
 
-  sensor_msgs::msg::Image blobImg;
-  processBlobs(blobPos, blobImg);
+  processBlobs(blobPos);
   response->centroid_pose = blobPos;
+
+  //final image conversion for output
+  sensor_msgs::msg::Image blobImg, maskImg, rawImg;
+  convertCVImageToROS(m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
+  convertCVImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
+  convertCVImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
+  blobImg.header = blobPos.header;
+  rawImg.header = blobPos.header;
+  maskImg.header = blobPos.header;
   response->img = blobImg;
+  response->img_raw = rawImg;
+  response->mask = maskImg;
   m_imagePub->publish(blobImg);
+  m_imageRawPub->publish(rawImg);
+  m_maskPub->publish(maskImg);
+
   if (blobPos.header.frame_id != "")
   { 
     std::string output = "Object found at " + std::to_string(blobPos.pose.position.x) + ", " + std::to_string(blobPos.pose.position.y) + ", " + std::to_string(blobPos.pose.position.z) + ", " + " angled: " + std::to_string(blobPos.pose.orientation.x) + ", "+ std::to_string(blobPos.pose.orientation.y) + ", "+ std::to_string(blobPos.pose.orientation.z) + ", "+ std::to_string(blobPos.pose.orientation.w) + "\n\n";
@@ -348,6 +384,7 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
                                          const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
 {
   m_colorImage = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
+  m_colorImageRaw = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
   m_depthImage = cv::Mat(cv_bridge::toCvCopy(depthImMsgA)->image);
   m_imageInfo = *infoMsgA;
   if(m_depthImage.type() != CV_32FC1)
@@ -365,15 +402,14 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
   if(m_continuousColor)
   {
     geometry_msgs::msg::PoseStamped blobPos;
-    sensor_msgs::msg::Image blobImg;
-    processBlobs(blobPos, blobImg); //live processing for debugging
+    processBlobs(blobPos); //live processing for debugging
   }
 }
 
 /****************
  * Process Blob - OpenCV & colorblob image processing
 *****************/
-void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg)
+void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos)
 {
   if (sendMockHardwareTransform(blobPos))
     return;
@@ -397,6 +433,7 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, s
   //dilates to fill in noise inside object of interest and make it solid. erode to restore object to proper size
   dilate(dilated, dilated, m_morphology);
   erode(dilated, eroded, m_morphology);
+  m_mask.setTo(cv::Scalar(0,0,0));
 
   std::vector<std::vector<cv::Point>> contours;
   std::vector<cv::Vec4i> hierarchy; 
@@ -411,13 +448,19 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, s
     if (ColorBlobCentroid::checkValidContour(rotRect))
     {
       if (m_desiredBlob == m_blobNum)
+      {
         drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(50, 200, 50), 4, cv::LINE_8);
-      drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(0, 255, 255), 1, cv::LINE_8);
+        drawContours(m_mask, contours, i, cv::Scalar(255, 255, 255), cv::FILLED, cv::LINE_8);
+      }
+      else
+      {
+        drawContours(m_colorImage, std::vector<std::vector<cv::Point> >(1,contours[i]), -1, cv::Scalar(0, 255, 255), 1, cv::LINE_8);
+      }
       // calculate x,y coordinate of centroid
       cv::Moments moment = moments(contours[i]);
       if (moment.m00 != 0)
       { 
-        ColorBlobCentroid::processContour(blobPos,blobImg,cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00)),rotRect);
+        ColorBlobCentroid::processContour(blobPos, cv::Point2f(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00)),rotRect);
       }
     }
   }
@@ -426,7 +469,9 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos, s
   {
     cv::imshow("img", m_colorImage);
     if (m_debugMode)
+    {
       cv::imshow("color segmentation", eroded);
+    }
   }
     cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
 }

@@ -41,9 +41,10 @@ private:
     void initialize();
     /* Helper */
     bool sendMockHardwareTransform(geometry_msgs::msg::PoseStamped &blobPos); //makes fake transform position 0.5 units Z direction from camera optical frame
-    void processContour(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg, cv::Point2f momentPt, cv::RotatedRect rotRect); //calculates final realworld coordinates of specific contour, writes data to image
+    void processContour(geometry_msgs::msg::PoseStamped &blobPos, cv::Point2f momentPt, cv::RotatedRect rotRect); //calculates final realworld coordinates of specific contour, writes data to image
     bool checkValidContour(cv::RotatedRect rotRect); //verify that a contour is within thresholds set by services
-    void outputContour(geometry_msgs::msg::PoseStamped &blobPos, sensor_msgs::msg::Image &blobImg, double worldX, double worldY, double depth, double angle); //using computed blob metrics, output for service using first two parameters, and publish transform of blob location
+    void outputContour(geometry_msgs::msg::PoseStamped &blobPos, double worldX, double worldY, double depth, double angle); //using computed blob metrics, output for service using first two parameters, and publish transform of blob location
+    void convertCVImageToROS(cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output); //given a header, cv::Mat, and image encoding, create a ROS image 
     /* Services */
     void color_blob_find(const std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Request> request,
       std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Response>      response);
@@ -54,7 +55,7 @@ private:
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
-    void processBlobs(geometry_msgs::msg::PoseStamped &blobPos,sensor_msgs::msg::Image &blobImg); //iterates through all color blobs in image and filters them with openCV & the thresholds specified by service
+    void processBlobs(geometry_msgs::msg::PoseStamped &blobPos); //iterates through all color blobs in image and filters them with openCV & the thresholds specified by service
 
     //Blob filtering parameters to maintain between service calls
     double m_minBlobSize;
@@ -69,7 +70,12 @@ private:
     rclcpp::Service<dex_ivr_interfaces::srv::BlobCentroid>::SharedPtr m_color_simple_srv; //configures the parameters of the color blob detection: min blob size and color
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr m_processing_srv; //turn on/off continuous image processing
 
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_imagePub;
+    // NOTE: for Emma/future parties wondering why we bother publishing a one-time image out on topics.
+    // They are published so that the data is captured in ROSBAG because service calls and results are not captured
+    // So the exact frame used for colorblob would be lost on replay, this allows you to diagnose/recompute/reinterpret with correct images.
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_imagePub; // markup image (whats shown to user with blobs circled in green)
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_imageRawPub; // raw frame used for color blob detection with no markup
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr m_maskPub; // mask of color, **NOTE** closed contours of color will FILL the contour!! A ring of color will output a filled circle of a mask!
     message_filters::Subscriber<sensor_msgs::msg::Image> m_depthImageSub;
     message_filters::Subscriber<sensor_msgs::msg::Image> m_colorImageSub;
     message_filters::Subscriber<sensor_msgs::msg::CameraInfo> m_colorInfoSub;
@@ -79,6 +85,7 @@ private:
     cv::Mat m_mask;
     ColorNames m_colorNames;
     cv::Mat m_colorImage;
+    cv::Mat m_colorImageRaw;
     cv::Mat m_depthImage;
     cv::Mat m_morphology;
     //Service call thresholds
