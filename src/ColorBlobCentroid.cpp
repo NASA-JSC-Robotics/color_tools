@@ -283,16 +283,20 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
   response->centroid_pose = blobPos;
 
   //final image conversion for output
-  sensor_msgs::msg::Image blobImg, maskImg, rawImg;
+  sensor_msgs::msg::Image blobImg, maskImg, rawImg, depthImg;
   convertCVImageToROS(m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
   convertCVImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
   convertCVImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
+  convertCVImageToROS(m_depthImage, sensor_msgs::image_encodings::TYPE_32FC1, depthImg);
   blobImg.header = blobPos.header;
   rawImg.header = blobPos.header;
   maskImg.header = blobPos.header;
-  response->img = blobImg;
-  response->img_raw = rawImg;
+  depthImg.header = blobPos.header;
+  response->color_img = blobImg;
+  response->color_img_raw = rawImg;
   response->mask = maskImg;
+  response->depth_img = depthImg;
+  response->cam_info = m_imageInfo;
   m_imagePub->publish(blobImg);
   m_imageRawPub->publish(rawImg);
   m_maskPub->publish(maskImg);
@@ -343,16 +347,20 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
   response->centroid_pose = blobPos;
 
   //final image conversion for output
-  sensor_msgs::msg::Image blobImg, maskImg, rawImg;
+  sensor_msgs::msg::Image blobImg, maskImg, rawImg, depthImg;
   convertCVImageToROS(m_colorImage, sensor_msgs::image_encodings::BGR8, blobImg);
   convertCVImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
   convertCVImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
+  convertCVImageToROS(m_depthImage, sensor_msgs::image_encodings::TYPE_32FC1, depthImg);
   blobImg.header = blobPos.header;
   rawImg.header = blobPos.header;
   maskImg.header = blobPos.header;
-  response->img = blobImg;
-  response->img_raw = rawImg;
+  depthImg.header = blobPos.header;
+  response->color_img = blobImg;
+  response->color_img_raw = rawImg;
   response->mask = maskImg;
+  response->depth_img = depthImg;
+  response->cam_info = m_imageInfo;
   m_imagePub->publish(blobImg);
   m_imageRawPub->publish(rawImg);
   m_maskPub->publish(maskImg);
