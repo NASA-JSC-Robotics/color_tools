@@ -1,6 +1,10 @@
 string gripper_frame        # Frame (eg grasp_frame) with which to align wipe frame
 float64 z_offset            # Offset by which to move frame for better grasping (assumes +z normal-ish to and into table)
 bool img_show               # Choose whether or not to show image
+# colorblob used to create a mask of an area to evaluate
+uint8 desired_blob 0        # Desired Blob index. Default is 0 
+float64 min_blob_size 50.0  # Minimum size of width or height of object in pixels to be searched for
+string color "blue"         # color of the mask to use
 ---
 string wipe_frame           # Name of output frame
 ---
