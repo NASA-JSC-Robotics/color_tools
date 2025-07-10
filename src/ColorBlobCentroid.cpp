@@ -46,6 +46,15 @@ void ColorBlobCentroid::initialize()
   //image topic prefix - realsense spawn topics based on camera_name parameter
   this->declare_parameter("prefix", "wrist_mounted_camera"); 
   m_prefix = this->get_parameter("prefix").as_string();
+  //color image topic
+  this->declare_parameter("color_img_topic", "color/image_raw"); 
+  m_color_topic = this->get_parameter("color_img_topic").as_string();
+  //depth image topic
+  this->declare_parameter("depth_img_topic", "aligned_depth_to_color/image_raw"); 
+  m_depth_topic = this->get_parameter("depth_img_topic").as_string();
+  //camera info topic
+  this->declare_parameter("cam_info_topic", "color/camera_info"); 
+  m_info_topic = this->get_parameter("cam_info_topic").as_string();
   //mock hardware - test operation without an image topic using a dummy point
   this->declare_parameter("mock_hardware", false);
   m_mockHardware = this->get_parameter("mock_hardware").as_bool();
@@ -72,9 +81,9 @@ void ColorBlobCentroid::initialize()
   m_imageRawPub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_image_raw", 10);
   m_maskPub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_mask", 10);
 
-  m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
-  m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
-  m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/color/camera_info", m_imageQos.get_rmw_qos_profile());
+  m_depthImageSub.subscribe(this, "/" + m_prefix + "/" + m_depth_topic, m_imageQos.get_rmw_qos_profile());
+  m_colorImageSub.subscribe(this,  "/" + m_prefix + "/" + m_color_topic, m_imageQos.get_rmw_qos_profile());
+  m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/" + m_info_topic, m_imageQos.get_rmw_qos_profile());
   m_timeSyncPtr = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
                                         sensor_msgs::msg::CameraInfo>>(m_colorImageSub, m_depthImageSub, m_colorInfoSub, 10);
   m_timeSyncPtr->registerCallback(std::bind(&ColorBlobCentroid::imageCallback, this, std::placeholders::_1,
@@ -338,9 +347,9 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
   if (request->prefix != "") //if new topic given, change image topic subscribers
   {
     m_prefix = request->prefix;
-    m_depthImageSub.subscribe(this, "/" + m_prefix + "/aligned_depth_to_color/image_raw", m_imageQos.get_rmw_qos_profile());
-    m_colorImageSub.subscribe(this,  "/" + m_prefix + "/color/image_raw", m_imageQos.get_rmw_qos_profile());
-    m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/color/camera_info", m_imageQos.get_rmw_qos_profile());
+    m_depthImageSub.subscribe(this, "/" + m_prefix + "/" + m_depth_topic, m_imageQos.get_rmw_qos_profile());
+    m_colorImageSub.subscribe(this,  "/" + m_prefix + "/" + m_color_topic, m_imageQos.get_rmw_qos_profile());
+    m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/" + m_info_topic, m_imageQos.get_rmw_qos_profile());
   }
 
   processBlobs(blobPos);

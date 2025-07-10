@@ -64,6 +64,9 @@ private:
     double m_blobAspectRatio;
     double m_blobARThreshold;
     std::string m_prefix;
+    std::string m_depth_topic;
+    std::string m_color_topic;
+    std::string m_info_topic;
     //ROS stuff
     rclcpp::QoS m_imageQos;
     rclcpp::Service<dex_ivr_interfaces::srv::BlobDimensions>::SharedPtr m_color_srv; //configures the parameters of the color blob detection: aspect ratio, size, color

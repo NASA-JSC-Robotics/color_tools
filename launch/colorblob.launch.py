@@ -53,11 +53,38 @@ def generate_launch_description():
         )
     )
 
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "color_img_topic",
+            default_value='color/image_raw',
+            description="Topic (not including prefix) on which raw color image is published.",
+        )
+    )
+
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "depth_img_topic",
+            default_value='aligned_depth_to_color/image_raw',
+            description="Topic (not including prefix) on which raw depth image is published.",
+        )
+    )
+
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "cam_info_topic",
+            default_value='color/camera_info',
+            description="Topic (not including prefix) on which camera info is published.",
+        )
+    )
+
     prefix = LaunchConfiguration("prefix")
     mock_hw = LaunchConfiguration("mock_hardware")
     show_img = LaunchConfiguration("show_image")
     debug = LaunchConfiguration("debug")
     cont_output = LaunchConfiguration("continuous_output")
+    color_img_topic = LaunchConfiguration("color_img_topic")
+    depth_img_topic = LaunchConfiguration("depth_img_topic")
+    cam_info_topic = LaunchConfiguration("cam_info_topic")
 
     colorblob_node = Node(
         package="color_blob_centroid",
@@ -71,6 +98,9 @@ def generate_launch_description():
                 "show_image":show_img,
                 "debug":debug,
                 "continuous_output":cont_output,
+                "color_img_topic":color_img_topic,
+                "depth_img_topic":depth_img_topic,
+                "cam_info_topic":cam_info_topic,
             }
         ],
     )
