@@ -68,7 +68,12 @@ void ColorBlobCentroid::initialize()
   this->declare_parameter("debug", false);
   m_debugMode = this->get_parameter("debug").as_bool();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Debug, set to %s", m_debugMode?"true":"false");
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Initial settings:\n Image topic prefix: %s\n Color blob: %s", m_prefix.c_str(), m_color.c_str());
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Initial settings:");
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Image topic prefix: %s", m_prefix.c_str());
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Color blob: %s", m_color.c_str());
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Color image topic: %s", ("/" + m_prefix + "/" + m_color_topic).c_str());
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Depth image topic: %s", ("/" + m_prefix + "/" + m_depth_topic).c_str());
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Camera info topic: %s", ("/" + m_prefix + "/" + m_info_topic).c_str());
 
   //  --- Image Processing Parameters --
   float dilation_size=1.0;
