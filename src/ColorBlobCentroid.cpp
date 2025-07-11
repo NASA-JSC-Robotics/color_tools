@@ -159,7 +159,7 @@ void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped &blobPos, 
 
   rclcpp::Time now = this->get_clock()->now();
   //set output for service call
-  blobPos.header.frame_id = std::string(m_prefix + "_color_optical_frame");
+  blobPos.header.frame_id = std::string(m_imageInfo.header.frame_id);
   blobPos.header.stamp = now;
   blobPos.pose.position.x = worldX;
   blobPos.pose.position.y = worldY;
@@ -171,7 +171,7 @@ void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped &blobPos, 
 
   //create and publish tf message
   geometry_msgs::msg::TransformStamped ts;
-  ts.header.frame_id = std::string(m_prefix + "_color_optical_frame");
+  ts.header.frame_id = std::string(m_imageInfo.header.frame_id);
 
   ts.header.stamp = now;
   ts.child_frame_id= std::string("colorblob_xd");
@@ -344,7 +344,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(const std::shared_ptr<dex_ivr_
   m_desiredBlob = request->desired_blob;
   if (request->color != "") //change color if given new one
     m_color = request->color;
-  if (request->prefix != "") //if new topic given, change image topic subscribers
+  if (request->prefix != "") //if new prefix given, change image topic subscribers
   {
     m_prefix = request->prefix;
     m_depthImageSub.subscribe(this, "/" + m_prefix + "/" + m_depth_topic, m_imageQos.get_rmw_qos_profile());
