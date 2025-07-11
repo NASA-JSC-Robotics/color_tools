@@ -21,6 +21,7 @@ ColorBlobCentroid::ColorBlobCentroid()
   , m_mockHardware(false)
   , m_showImage(false)
   , m_desiredBlob(0)
+  , m_ready(false)
 {
   initialize();
 }
@@ -74,9 +75,9 @@ void ColorBlobCentroid::initialize()
   m_morphology = getStructuringElement( cv::MORPH_RECT,
                       cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                       cv::Point( dilation_size, dilation_size ) );
-  m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("color_set_blob_dimensions", std::bind(&ColorBlobCentroid::color_set_blob_dimensions, this, _1, _2));
-  m_color_simple_srv = this->create_service<dex_ivr_interfaces::srv::BlobCentroid>("color_blob_find", std::bind(&ColorBlobCentroid::color_blob_find, this, _1, _2));
+
   m_processing_srv = this->create_service<std_srvs::srv::SetBool>("color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
+
   m_imagePub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_image", 10);
   m_imageRawPub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_image_raw", 10);
   m_maskPub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_mask", 10);
@@ -84,11 +85,11 @@ void ColorBlobCentroid::initialize()
   m_depthImageSub.subscribe(this, "/" + m_prefix + "/" + m_depth_topic, m_imageQos.get_rmw_qos_profile());
   m_colorImageSub.subscribe(this,  "/" + m_prefix + "/" + m_color_topic, m_imageQos.get_rmw_qos_profile());
   m_colorInfoSub.subscribe(this,  "/" + m_prefix + "/" + m_info_topic, m_imageQos.get_rmw_qos_profile());
+
   m_timeSyncPtr = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
                                         sensor_msgs::msg::CameraInfo>>(m_colorImageSub, m_depthImageSub, m_colorInfoSub, 10);
   m_timeSyncPtr->registerCallback(std::bind(&ColorBlobCentroid::imageCallback, this, std::placeholders::_1,
                                       std::placeholders::_2, std::placeholders::_3));
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
 }
 
 /****************
@@ -400,6 +401,10 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
                                          const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                                          const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
 {
+  if (!m_ready){
+    advertiseServices();
+    m_ready = true;
+  }
   m_colorImage = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
   m_colorImageRaw = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);    // this is the opencv encoding
   m_depthImage = cv::Mat(cv_bridge::toCvCopy(depthImMsgA)->image);
@@ -491,6 +496,13 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped &blobPos)
     }
   }
     cv::waitKey(1); //set to 1 for coninuous output, set to 0 for single frame forever
+}
+
+void ColorBlobCentroid::advertiseServices()
+{
+  m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>("color_set_blob_dimensions", std::bind(&ColorBlobCentroid::color_set_blob_dimensions, this, _1, _2));
+  m_color_simple_srv = this->create_service<dex_ivr_interfaces::srv::BlobCentroid>("color_blob_find", std::bind(&ColorBlobCentroid::color_blob_find, this, _1, _2));
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
 }
 
 

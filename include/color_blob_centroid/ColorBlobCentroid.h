@@ -56,6 +56,7 @@ private:
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
     void processBlobs(geometry_msgs::msg::PoseStamped &blobPos); //iterates through all color blobs in image and filters them with openCV & the thresholds specified by service
+    void advertiseServices(); //Sets up image processing services once an image has been received
 
     //Blob filtering parameters to maintain between service calls
     double m_minBlobSize;
@@ -99,6 +100,7 @@ private:
     bool m_debugMode;
     uint m_desiredBlob;
     uint m_blobNum;
+    bool m_ready;
     sensor_msgs::msg::CameraInfo m_imageInfo;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> m_tfBroadcasterPtr = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
