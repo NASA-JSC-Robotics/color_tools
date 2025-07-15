@@ -5,9 +5,10 @@
   <version>1.0.0</version>
   <description>Find centroid of a colorblob and use depth to output a transform relative to camera in the world</description>
   <maintainer email="connor.m.rainen@nasa.gov">crainen</maintainer>
-  <license>TODO: License declaration</license>
+  <license>Apache License, Version 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+
   <depend>color_names</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
@@ -22,8 +23,6 @@
   <depend>image_geometry</depend>
   <depend>dex_ivr_interfaces</depend>
   <exec_depend>ros2launch</exec_depend>
-  <test_depend>ament_lint_auto</test_depend>
-  <test_depend>ament_lint_common</test_depend>
   <export>
     <build_type>ament_cmake</build_type>
   </export>
