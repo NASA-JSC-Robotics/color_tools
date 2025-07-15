@@ -2,10 +2,10 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>dex_ivr_interfaces</name>
-  <version>0.0.0</version>
+  <version>1.0.0</version>
   <description>ROS2 interface declaration for perception packages</description>
   <maintainer email="connor.m.rainen@nasa.gov">crainen</maintainer>
-  <license>NASA-1.3</license>
+  <license>Apache License, Version 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
