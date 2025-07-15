@@ -44,7 +44,7 @@ private:
     void processContour(geometry_msgs::msg::PoseStamped &blobPos, cv::Point2f momentPt, cv::RotatedRect rotRect); //calculates final realworld coordinates of specific contour, writes data to image
     bool checkValidContour(cv::RotatedRect rotRect); //verify that a contour is within thresholds set by services
     void outputContour(geometry_msgs::msg::PoseStamped &blobPos, double worldX, double worldY, double depth, double angle); //using computed blob metrics, output for service using first two parameters, and publish transform of blob location
-    void convertCVImageToROS(cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output); //given a header, cv::Mat, and image encoding, create a ROS image 
+    void convertCVImageToROS(cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output); //given a header, cv::Mat, and image encoding, create a ROS image
     /* Services */
     void color_blob_find(const std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Request> request,
       std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Response>      response);
@@ -56,6 +56,7 @@ private:
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
     void processBlobs(geometry_msgs::msg::PoseStamped &blobPos); //iterates through all color blobs in image and filters them with openCV & the thresholds specified by service
+    void advertiseServices(); //Sets up image processing services.
 
     //Blob filtering parameters to maintain between service calls
     double m_minBlobSize;
@@ -64,6 +65,9 @@ private:
     double m_blobAspectRatio;
     double m_blobARThreshold;
     std::string m_prefix;
+    std::string m_depth_topic;
+    std::string m_color_topic;
+    std::string m_info_topic;
     //ROS stuff
     rclcpp::QoS m_imageQos;
     rclcpp::Service<dex_ivr_interfaces::srv::BlobDimensions>::SharedPtr m_color_srv; //configures the parameters of the color blob detection: aspect ratio, size, color
@@ -81,7 +85,7 @@ private:
     message_filters::Subscriber<sensor_msgs::msg::CameraInfo> m_colorInfoSub;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
                                               sensor_msgs::msg::CameraInfo>> m_timeSyncPtr;
-    //Image checkpoints                                          
+    //Image checkpoints
     cv::Mat m_mask;
     ColorNames m_colorNames;
     cv::Mat m_colorImage;
