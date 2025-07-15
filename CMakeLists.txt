@@ -45,7 +45,7 @@ endif()
   tf2_geometry_msgs
   std_msgs
   sensor_msgs
-  image_transport 
+  image_transport
   geometry_msgs
   cv_bridge
   color_names
@@ -61,7 +61,7 @@ endif()
   tf2_ros
   std_msgs
   sensor_msgs
-  image_transport 
+  image_transport
   cv_bridge
   color_names
   dex_ivr_interfaces
