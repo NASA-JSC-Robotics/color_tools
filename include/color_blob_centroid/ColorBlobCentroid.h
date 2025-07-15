@@ -44,7 +44,7 @@ private:
     void processContour(geometry_msgs::msg::PoseStamped &blobPos, cv::Point2f momentPt, cv::RotatedRect rotRect); //calculates final realworld coordinates of specific contour, writes data to image
     bool checkValidContour(cv::RotatedRect rotRect); //verify that a contour is within thresholds set by services
     void outputContour(geometry_msgs::msg::PoseStamped &blobPos, double worldX, double worldY, double depth, double angle); //using computed blob metrics, output for service using first two parameters, and publish transform of blob location
-    void convertCVImageToROS(cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output); //given a header, cv::Mat, and image encoding, create a ROS image 
+    void convertCVImageToROS(cv::Mat &input, const char encoding[], sensor_msgs::msg::Image &output); //given a header, cv::Mat, and image encoding, create a ROS image
     /* Services */
     void color_blob_find(const std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Request> request,
       std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Response>      response);
@@ -85,7 +85,7 @@ private:
     message_filters::Subscriber<sensor_msgs::msg::CameraInfo> m_colorInfoSub;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
                                               sensor_msgs::msg::CameraInfo>> m_timeSyncPtr;
-    //Image checkpoints                                          
+    //Image checkpoints
     cv::Mat m_mask;
     ColorNames m_colorNames;
     cv::Mat m_colorImage;
@@ -100,7 +100,6 @@ private:
     bool m_debugMode;
     uint m_desiredBlob;
     uint m_blobNum;
-    bool m_ready;
     sensor_msgs::msg::CameraInfo m_imageInfo;
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> m_tfBroadcasterPtr = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
