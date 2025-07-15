@@ -56,7 +56,7 @@ private:
                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
     void processBlobs(geometry_msgs::msg::PoseStamped &blobPos); //iterates through all color blobs in image and filters them with openCV & the thresholds specified by service
-    void advertiseServices(); //Sets up image processing services once an image has been received
+    void advertiseServices(); //Sets up image processing services.
 
     //Blob filtering parameters to maintain between service calls
     double m_minBlobSize;
