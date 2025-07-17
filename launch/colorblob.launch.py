@@ -1,11 +1,26 @@
-from ament_index_python.packages import get_package_share_directory
+#!/usr/bin/env python3
+#
+# Copyright (c) 2025, United States Government, as represented by the
+# Administrator of the National Aeronautics and Space Administration.
+#
+# All rights reserved.
+#
+# This software is licensed under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with the
+# License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.actions import DeclareLaunchArgument
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
-from launch.substitutions import LaunchConfiguration, ThisLaunchFileDir
-import os
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
@@ -24,7 +39,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "mock_hardware",
-            default_value='false',
+            default_value="false",
             description="Simulate camera information instead of bringing up actual cameras",
         )
     )
@@ -32,7 +47,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "continuous_output",
-            default_value='true',
+            default_value="true",
             description="continually output the transform when color blob is visible instead of once per service call",
         )
     )
@@ -40,7 +55,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "show_image",
-            default_value='true',
+            default_value="true",
             description="Show an image from the camera - only available if mock_harware is false",
         )
     )
@@ -48,15 +63,16 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "debug",
-            default_value='false',
-            description="Show the underlying color segmentation from the camera, Shows world coords and blob size - only available if mock_harware is false",
+            default_value="false",
+            description="Show the underlying color segmentation from the camera,"
+            "Shows world coords and blob size - only available if mock_harware is false",
         )
     )
 
     declared_arguments.append(
         DeclareLaunchArgument(
             "color_img_topic",
-            default_value='color/image_raw',
+            default_value="color/image_raw",
             description="Topic (not including prefix) on which raw color image is published.",
         )
     )
@@ -64,7 +80,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "depth_img_topic",
-            default_value='aligned_depth_to_color/image_raw',
+            default_value="aligned_depth_to_color/image_raw",
             description="Topic (not including prefix) on which raw depth image is published.",
         )
     )
@@ -72,7 +88,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "cam_info_topic",
-            default_value='color/camera_info',
+            default_value="color/camera_info",
             description="Topic (not including prefix) on which camera info is published.",
         )
     )
@@ -93,20 +109,18 @@ def generate_launch_description():
         output="screen",
         parameters=[
             {
-                "prefix":prefix,
-                "mock_hardware":mock_hw,
-                "show_image":show_img,
-                "debug":debug,
-                "continuous_output":cont_output,
-                "color_img_topic":color_img_topic,
-                "depth_img_topic":depth_img_topic,
-                "cam_info_topic":cam_info_topic,
+                "prefix": prefix,
+                "mock_hardware": mock_hw,
+                "show_image": show_img,
+                "debug": debug,
+                "continuous_output": cont_output,
+                "color_img_topic": color_img_topic,
+                "depth_img_topic": depth_img_topic,
+                "cam_info_topic": cam_info_topic,
             }
         ],
     )
 
-    nodes_to_launch = [
-        colorblob_node
-    ]
+    nodes_to_launch = [colorblob_node]
 
     return LaunchDescription(declared_arguments + nodes_to_launch)
