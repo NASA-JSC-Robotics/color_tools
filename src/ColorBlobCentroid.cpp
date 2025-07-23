@@ -171,7 +171,7 @@ void ColorBlobCentroid::convertCVImageToROS(cv::Mat& input, const char encoding[
   // convert cv images to ROS images
   // img output
   cv_bridge::CvImage img_bridge;
-  std_msgs::msg::Header header;
+  std_msgs::msg::Header header = m_imageInfo.header;
   img_bridge = cv_bridge::CvImage(header, encoding, input);
   img_bridge.toImageMsg(output);  // from cv_bridge to sensor_msgs::Image
 }
@@ -197,8 +197,7 @@ void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped& blobPos, 
 
   rclcpp::Time now = this->get_clock()->now();
   // set output for service call
-  blobPos.header.frame_id = std::string(m_imageInfo.header.frame_id);
-  blobPos.header.stamp = now;
+  blobPos.header = m_imageInfo.header;
   blobPos.pose.position.x = worldX;
   blobPos.pose.position.y = worldY;
   blobPos.pose.position.z = depth;
@@ -209,9 +208,7 @@ void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped& blobPos, 
 
   // create and publish tf message
   geometry_msgs::msg::TransformStamped ts;
-  ts.header.frame_id = std::string(m_imageInfo.header.frame_id);
-
-  ts.header.stamp = now;
+  ts.header = m_imageInfo.header;
   ts.child_frame_id = std::string("colorblob_xd");
   ts.transform.rotation.x = blobPos.pose.orientation.x;
   ts.transform.rotation.y = blobPos.pose.orientation.y;
@@ -357,10 +354,6 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
   convertCVImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
   convertCVImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
   convertCVImageToROS(m_depthImage, sensor_msgs::image_encodings::TYPE_32FC1, depthImg);
-  blobImg.header = blobPos.header;
-  rawImg.header = blobPos.header;
-  maskImg.header = blobPos.header;
-  depthImg.header = blobPos.header;
   response->color_img = blobImg;
   response->color_img_raw = rawImg;
   response->mask = maskImg;
@@ -434,10 +427,6 @@ void ColorBlobCentroid::color_set_blob_dimensions(
   convertCVImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
   convertCVImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
   convertCVImageToROS(m_depthImage, sensor_msgs::image_encodings::TYPE_32FC1, depthImg);
-  blobImg.header = blobPos.header;
-  rawImg.header = blobPos.header;
-  maskImg.header = blobPos.header;
-  depthImg.header = blobPos.header;
   response->color_img = blobImg;
   response->color_img_raw = rawImg;
   response->mask = maskImg;
