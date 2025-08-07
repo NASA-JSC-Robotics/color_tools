@@ -59,32 +59,40 @@ void ColorBlobCentroid::initialize()
   m_imageQos.reliable();
   m_imageQos.durability_volatile();
 
-  //  --- Ros Parameters ---
+  /** --- Ros Parameters --- */
+
   // continuous output of final transform
   this->declare_parameter("continuous_output", false);
   m_continuousColor = this->get_parameter("continuous_output").as_bool();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Continuous Output set to %s", m_continuousColor ? "true" : "false");
+
   // image topic prefix - realsense spawn topics based on camera_name parameter
   this->declare_parameter("prefix", "wrist_mounted_camera");
   m_prefix = this->get_parameter("prefix").as_string();
+
   // color image topic
   this->declare_parameter("color_img_topic", "color/image_raw");
   m_color_topic = this->get_parameter("color_img_topic").as_string();
+
   // depth image topic
   this->declare_parameter("depth_img_topic", "aligned_depth_to_color/image_raw");
   m_depth_topic = this->get_parameter("depth_img_topic").as_string();
+
   // camera info topic
   this->declare_parameter("cam_info_topic", "color/camera_info");
   m_info_topic = this->get_parameter("cam_info_topic").as_string();
+
   // mock hardware - test operation without an image topic using a dummy point
   this->declare_parameter("mock_hardware", false);
   m_mockHardware = this->get_parameter("mock_hardware").as_bool();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Mock Hardware set to %s",
               m_mockHardware ? "true !!! WARNING !!!" : "false");
+
   // show camera imagethis->declare_parameter("show_image", false);
   this->declare_parameter("show_image", false);
   m_showImage = this->get_parameter("show_image").as_bool();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Show Image set to %s", m_showImage ? "true" : "false");
+
   // verbose debug mode that shows underlying color
   this->declare_parameter("debug", false);
   m_debugMode = this->get_parameter("debug").as_bool();
@@ -101,13 +109,12 @@ void ColorBlobCentroid::initialize()
   m_morphology = getStructuringElement(cv::MORPH_RECT, cv::Size(2 * dilation_size + 1, 2 * dilation_size + 1),
                                        cv::Point(dilation_size, dilation_size));
 
-  m_processing_srv = this->create_service<std_srvs::srv::SetBool>(
-      "color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
-
+  // Construct publishers
   m_imagePub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_image", 10);
   m_imageRawPub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_image_raw", 10);
   m_maskPub = this->create_publisher<sensor_msgs::msg::Image>("colorblob_mask", 10);
 
+  // Construct subscribers for image topics and synchronize them
   m_depthImageSub.subscribe(this, "/" + m_prefix + "/" + m_depth_topic, m_imageQos.get_rmw_qos_profile());
   m_colorImageSub.subscribe(this, "/" + m_prefix + "/" + m_color_topic, m_imageQos.get_rmw_qos_profile());
   m_colorInfoSub.subscribe(this, "/" + m_prefix + "/" + m_info_topic, m_imageQos.get_rmw_qos_profile());
@@ -119,7 +126,14 @@ void ColorBlobCentroid::initialize()
                                             std::placeholders::_2, std::placeholders::_3));
 
   // Construct service servers.
-  advertiseServices();
+  m_processing_srv = this->create_service<std_srvs::srv::SetBool>(
+      "color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
+  m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>(
+      "color_set_blob_dimensions", std::bind(&ColorBlobCentroid::color_set_blob_dimensions, this, _1, _2));
+  m_color_simple_srv = this->create_service<dex_ivr_interfaces::srv::BlobCentroid>(
+      "color_blob_find", std::bind(&ColorBlobCentroid::color_blob_find, this, _1, _2));
+
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
 }
 
 /****************
@@ -171,7 +185,7 @@ void ColorBlobCentroid::convertCVImageToROS(cv::Mat& input, const char encoding[
   // convert cv images to ROS images
   // img output
   cv_bridge::CvImage img_bridge;
-  std_msgs::msg::Header header;
+  std_msgs::msg::Header header = m_imageInfo.header;
   img_bridge = cv_bridge::CvImage(header, encoding, input);
   img_bridge.toImageMsg(output);  // from cv_bridge to sensor_msgs::Image
 }
@@ -197,8 +211,7 @@ void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped& blobPos, 
 
   rclcpp::Time now = this->get_clock()->now();
   // set output for service call
-  blobPos.header.frame_id = std::string(m_imageInfo.header.frame_id);
-  blobPos.header.stamp = now;
+  blobPos.header = m_imageInfo.header;
   blobPos.pose.position.x = worldX;
   blobPos.pose.position.y = worldY;
   blobPos.pose.position.z = depth;
@@ -209,9 +222,7 @@ void ColorBlobCentroid::outputContour(geometry_msgs::msg::PoseStamped& blobPos, 
 
   // create and publish tf message
   geometry_msgs::msg::TransformStamped ts;
-  ts.header.frame_id = std::string(m_imageInfo.header.frame_id);
-
-  ts.header.stamp = now;
+  ts.header = m_imageInfo.header;
   ts.child_frame_id = std::string("colorblob_xd");
   ts.transform.rotation.x = blobPos.pose.orientation.x;
   ts.transform.rotation.y = blobPos.pose.orientation.y;
@@ -244,9 +255,13 @@ void ColorBlobCentroid::processContour(geometry_msgs::msg::PoseStamped& blobPos,
   bool doOutput = (m_desiredBlob == m_blobNum);
   cv::Scalar color;
   if (doOutput)
+  {
     color = cv::Scalar(70, 255, 70);
+  }
   else
+  {
     color = cv::Scalar(255, 255, 255);
+  }
 
   circle(m_colorImage, momentPt, 5, color, -1);
   putText(m_colorImage, std::to_string(m_blobNum), cv::Point2f(momentPt.x - 10, momentPt.y - 25),
@@ -284,7 +299,9 @@ void ColorBlobCentroid::processContour(geometry_msgs::msg::PoseStamped& blobPos,
 
   // if this is the chosen blob (default blob 0), output blob
   if (doOutput)
+  {
     ColorBlobCentroid::outputContour(blobPos, worldX, worldY, depth, angle);
+  }
 }
 
 bool ColorBlobCentroid::checkValidContour(cv::RotatedRect rotRect)
@@ -302,7 +319,9 @@ bool ColorBlobCentroid::checkValidContour(cv::RotatedRect rotRect)
   {
     // eliminate noisey shadows
     if (height > m_minBlobSize && width > m_minBlobSize)
+    {
       processContour = true;
+    }
   }
   // if aspect ratio exists and is within threshold of what is expected.
   if (m_blobAspectRatio != -1 && (width / height) < (m_blobAspectRatio + m_blobARThreshold / 2) &&
@@ -318,6 +337,7 @@ bool ColorBlobCentroid::checkValidContour(cv::RotatedRect rotRect)
   }
   return processContour;
 }
+
 /****************
  * Color Blob Find Service - minimalist service call to get color, only uses
  *blob size and blob color
@@ -357,10 +377,6 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
   convertCVImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
   convertCVImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
   convertCVImageToROS(m_depthImage, sensor_msgs::image_encodings::TYPE_32FC1, depthImg);
-  blobImg.header = blobPos.header;
-  rawImg.header = blobPos.header;
-  maskImg.header = blobPos.header;
-  depthImg.header = blobPos.header;
   response->color_img = blobImg;
   response->color_img_raw = rawImg;
   response->mask = maskImg;
@@ -397,6 +413,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(
                     "\n Size Thresh: " + std::to_string(request->size_threshold) +
                     "\n Color: " + request->color.c_str() + "\n Image prefix: " + request->prefix.c_str();
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), req.c_str());
+
   // handle mock hardware
   geometry_msgs::msg::PoseStamped blobPos;
   if (sendMockHardwareTransform(blobPos))
@@ -409,6 +426,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(
     RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ERROR - No image. Check that image topics exist and data is flowing.");
     return;
   }
+
   // if not mock_hardware actually process the visual node
   m_blobAspectRatio = request->aspect_ratio;
   m_blobARThreshold = request->aspect_ratio_threshold;
@@ -416,7 +434,9 @@ void ColorBlobCentroid::color_set_blob_dimensions(
   m_blobSizeThreshold = request->size_threshold;
   m_desiredBlob = request->desired_blob;
   if (request->color != "")  // change color if given new one
+  {
     m_color = request->color;
+  }
   if (request->prefix != "")  // if new prefix given, change image topic subscribers
   {
     m_prefix = request->prefix;
@@ -434,10 +454,6 @@ void ColorBlobCentroid::color_set_blob_dimensions(
   convertCVImageToROS(m_colorImageRaw, sensor_msgs::image_encodings::BGR8, rawImg);
   convertCVImageToROS(m_mask, sensor_msgs::image_encodings::MONO8, maskImg);
   convertCVImageToROS(m_depthImage, sensor_msgs::image_encodings::TYPE_32FC1, depthImg);
-  blobImg.header = blobPos.header;
-  rawImg.header = blobPos.header;
-  maskImg.header = blobPos.header;
-  depthImg.header = blobPos.header;
   response->color_img = blobImg;
   response->color_img_raw = rawImg;
   response->mask = maskImg;
@@ -457,7 +473,9 @@ void ColorBlobCentroid::color_set_blob_dimensions(
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), output.c_str());
   }
   else
+  {
     RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "FAILED to find object in image frame");
+  }
 }
 
 /****************
@@ -508,7 +526,9 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
 void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped& blobPos)
 {
   if (sendMockHardwareTransform(blobPos))
+  {
     return;
+  }
 
   if (m_colorImage.empty())
   {
@@ -578,15 +598,6 @@ void ColorBlobCentroid::processBlobs(geometry_msgs::msg::PoseStamped& blobPos)
     }
   }
   cv::waitKey(1);  // set to 1 for continuous output, set to 0 for single frame forever
-}
-
-void ColorBlobCentroid::advertiseServices()
-{
-  m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>(
-      "color_set_blob_dimensions", std::bind(&ColorBlobCentroid::color_set_blob_dimensions, this, _1, _2));
-  m_color_simple_srv = this->create_service<dex_ivr_interfaces::srv::BlobCentroid>(
-      "color_blob_find", std::bind(&ColorBlobCentroid::color_blob_find, this, _1, _2));
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
 }
 
 int main(int argc, char* argv[])

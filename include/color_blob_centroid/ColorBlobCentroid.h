@@ -60,36 +60,42 @@ public:
 
 private:
   void initialize();
-  /* Helper */
-  bool sendMockHardwareTransform(geometry_msgs::msg::PoseStamped& blobPos);  // makes fake transform position 0.5 units
-                                                                             // Z direction from camera optical frame
-  void processContour(geometry_msgs::msg::PoseStamped& blobPos, cv::Point2f momentPt,
-                      cv::RotatedRect rotRect);     // calculates final realworld coordinates of
-                                                    // specific contour, writes data to image
-  bool checkValidContour(cv::RotatedRect rotRect);  // verify that a contour is within
-                                                    // thresholds set by services
-  void outputContour(geometry_msgs::msg::PoseStamped& blobPos, double worldX, double worldY, double depth,
-                     double angle);  // using computed blob metrics, output for
-                                     // service using first two parameters, and
-                                     // publish transform of blob location
-  void convertCVImageToROS(cv::Mat& input, const char encoding[],
-                           sensor_msgs::msg::Image& output);  // given a header, cv::Mat, and image
-                                                              // encoding, create a ROS image
+
+  /* Helpers */
+
+  // makes fake transform position 0.5 units Z direction from camera optical frame
+  bool sendMockHardwareTransform(geometry_msgs::msg::PoseStamped& blobPos);
+
+  // calculates final realworld coordinates of specific contour, writes data to image
+  void processContour(geometry_msgs::msg::PoseStamped& blobPos, cv::Point2f momentPt, cv::RotatedRect rotRect);
+
+  // verify that a contour is within thresholds set by services
+  bool checkValidContour(cv::RotatedRect rotRect);
+
+  // using computed blob metrics, output for service using first two parameters, and publish transform of
+  // blob location
+  void outputContour(geometry_msgs::msg::PoseStamped& blobPos, double worldX, double worldY, double depth, double angle);
+
+  // given a header, cv::Mat, and image encoding, create a ROS image
+  void convertCVImageToROS(cv::Mat& input, const char encoding[], sensor_msgs::msg::Image& output);
+
   /* Services */
+
   void color_blob_find(const std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Request> request,
                        std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Response> response);
   void color_set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
                                  std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response> response);
   void toggle_continuous(const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
                          std::shared_ptr<std_srvs::srv::SetBool::Response> response);
+
   /* Core Processing */
+
   void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
                      const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                      const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
-  void
-  processBlobs(geometry_msgs::msg::PoseStamped& blobPos);  // iterates through all color blobs in image and filters
-                                                           // them with openCV & the thresholds specified by service
-  void advertiseServices();                                // Sets up image processing services.
+
+  // iterates through all color blobs in image and filters them with openCV & the thresholds specified by service
+  void processBlobs(geometry_msgs::msg::PoseStamped& blobPos);
 
   // Blob filtering parameters to maintain between service calls
   double m_minBlobSize;
@@ -101,6 +107,7 @@ private:
   std::string m_depth_topic;
   std::string m_color_topic;
   std::string m_info_topic;
+
   // ROS stuff
   rclcpp::QoS m_imageQos;
   rclcpp::Service<dex_ivr_interfaces::srv::BlobDimensions>::SharedPtr
@@ -129,6 +136,7 @@ private:
   std::shared_ptr<
       message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image, sensor_msgs::msg::CameraInfo>>
       m_timeSyncPtr;
+
   // Image checkpoints
   cv::Mat m_mask;
   ColorNames m_colorNames;
@@ -136,6 +144,7 @@ private:
   cv::Mat m_colorImageRaw;
   cv::Mat m_depthImage;
   cv::Mat m_morphology;
+
   // Service call thresholds
   std::string m_color;
   bool m_continuousColor;  // flag for continuous processing of color
