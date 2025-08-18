@@ -128,9 +128,9 @@ void ColorBlobCentroid::initialize()
   // Construct service servers.
   m_processing_srv = this->create_service<std_srvs::srv::SetBool>(
       "color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
-  m_color_srv = this->create_service<dex_ivr_interfaces::srv::BlobDimensions>(
+  m_color_srv = this->create_service<color_tools_msgs::srv::BlobDimensions>(
       "color_set_blob_dimensions", std::bind(&ColorBlobCentroid::color_set_blob_dimensions, this, _1, _2));
-  m_color_simple_srv = this->create_service<dex_ivr_interfaces::srv::BlobCentroid>(
+  m_color_simple_srv = this->create_service<color_tools_msgs::srv::BlobCentroid>(
       "color_blob_find", std::bind(&ColorBlobCentroid::color_blob_find, this, _1, _2));
 
   RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to process images on service request ");
@@ -342,8 +342,8 @@ bool ColorBlobCentroid::checkValidContour(cv::RotatedRect rotRect)
  * Color Blob Find Service - minimalist service call to get color, only uses
  *blob size and blob color
  *****************/
-void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Request> request,
-                                        std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Response> response)
+void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::srv::BlobCentroid::Request> request,
+                                        std::shared_ptr<color_tools_msgs::srv::BlobCentroid::Response> response)
 {
   // handle mock hardware
   geometry_msgs::msg::PoseStamped blobPos;
@@ -404,8 +404,8 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<dex_ivr_interfaces
  * has many settable parameters
  *****************/
 void ColorBlobCentroid::color_set_blob_dimensions(
-    const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
-    std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response> response)
+    const std::shared_ptr<color_tools_msgs::srv::BlobDimensions::Request> request,
+    std::shared_ptr<color_tools_msgs::srv::BlobDimensions::Response> response)
 {
   std::string req = "Incoming Request -\n Aspect Ratio: " + std::to_string(request->aspect_ratio) +
                     "\n Aspect Thresh: " + std::to_string(request->aspect_ratio_threshold) +

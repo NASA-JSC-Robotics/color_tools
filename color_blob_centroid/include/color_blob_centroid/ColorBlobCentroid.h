@@ -33,8 +33,8 @@
 #include "tf2/LinearMath/Quaternion.h"
 
 #include <color_names/ColorNames.h>
-#include "dex_ivr_interfaces/srv/blob_centroid.hpp"
-#include "dex_ivr_interfaces/srv/blob_dimensions.hpp"
+#include "color_tools_msgs/srv/blob_centroid.hpp"
+#include "color_tools_msgs/srv/blob_dimensions.hpp"
 
 #include <geometry_msgs/msg/pose_stamped.h>
 #include <geometry_msgs/msg/quaternion.h>
@@ -81,10 +81,10 @@ private:
 
   /* Services */
 
-  void color_blob_find(const std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Request> request,
-                       std::shared_ptr<dex_ivr_interfaces::srv::BlobCentroid::Response> response);
-  void color_set_blob_dimensions(const std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Request> request,
-                                 std::shared_ptr<dex_ivr_interfaces::srv::BlobDimensions::Response> response);
+  void color_blob_find(const std::shared_ptr<color_tools_msgs::srv::BlobCentroid::Request> request,
+                       std::shared_ptr<color_tools_msgs::srv::BlobCentroid::Response> response);
+  void color_set_blob_dimensions(const std::shared_ptr<color_tools_msgs::srv::BlobDimensions::Request> request,
+                                 std::shared_ptr<color_tools_msgs::srv::BlobDimensions::Response> response);
   void toggle_continuous(const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
                          std::shared_ptr<std_srvs::srv::SetBool::Response> response);
 
@@ -110,10 +110,10 @@ private:
 
   // ROS stuff
   rclcpp::QoS m_imageQos;
-  rclcpp::Service<dex_ivr_interfaces::srv::BlobDimensions>::SharedPtr
+  rclcpp::Service<color_tools_msgs::srv::BlobDimensions>::SharedPtr
       m_color_srv;  // configures the parameters of the color blob detection:
                     // aspect ratio, size, color
-  rclcpp::Service<dex_ivr_interfaces::srv::BlobCentroid>::SharedPtr
+  rclcpp::Service<color_tools_msgs::srv::BlobCentroid>::SharedPtr
       m_color_simple_srv;                                               // configures the parameters of the color blob
                                                                         // detection: min blob size and color
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr m_processing_srv;  // turn on/off continuous image processing

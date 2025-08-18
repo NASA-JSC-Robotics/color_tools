@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "dex_ivr_interfaces/srv/blob_dimensions.hpp"
+#include "color_tools_msgs/srv/blob_dimensions.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2/LinearMath/Quaternion.h"
@@ -41,10 +41,10 @@ int main(int argc, char** argv)
   }
 
   std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("blob_dimensions_client");
-  rclcpp::Client<dex_ivr_interfaces::srv::BlobDimensions>::SharedPtr client =
-      node->create_client<dex_ivr_interfaces::srv::BlobDimensions>("set_blob_dimensions");
+  rclcpp::Client<color_tools_msgs::srv::BlobDimensions>::SharedPtr client =
+      node->create_client<color_tools_msgs::srv::BlobDimensions>("set_blob_dimensions");
 
-  auto request = std::make_shared<dex_ivr_interfaces::srv::BlobDimensions::Request>();
+  auto request = std::make_shared<color_tools_msgs::srv::BlobDimensions::Request>();
   request->aspect_ratio = atof(argv[1]);
   request->aspect_ratio_threshold = atof(argv[2]);
   request->size = atof(argv[3]);

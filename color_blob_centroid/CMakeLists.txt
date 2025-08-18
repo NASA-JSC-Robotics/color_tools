@@ -19,7 +19,7 @@ endif()
   find_package(cv_bridge REQUIRED)
   find_package(image_geometry REQUIRED)
   find_package(message_filters REQUIRED)
-  find_package(dex_ivr_interfaces REQUIRED)
+  find_package(color_tools_msgs REQUIRED)
   find_package(std_srvs REQUIRED)
   find_package(tf2_ros REQUIRED)
   find_package(tf2 REQUIRED)
@@ -48,7 +48,7 @@ endif()
   geometry_msgs
   cv_bridge
   color_names
-  dex_ivr_interfaces
+  color_tools_msgs
   std_srvs
   OpenCV)
 
@@ -63,7 +63,7 @@ endif()
   image_transport
   cv_bridge
   color_names
-  dex_ivr_interfaces
+  color_tools_msgs
   OpenCV)
 
   ament_target_dependencies(${PROJECT_NAME} ${centroid_dependencies})

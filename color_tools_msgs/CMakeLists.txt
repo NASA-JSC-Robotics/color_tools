@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(dex_ivr_interfaces)
+project(color_tools_msgs)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
