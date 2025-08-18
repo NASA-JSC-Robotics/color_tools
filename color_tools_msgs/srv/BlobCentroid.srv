@@ -1,8 +1,8 @@
-uint8 desired_blob 0                # Desired Blob index. Default is 0 
+uint8 desired_blob 0                # Desired Blob index. Default is 0
 float64 min_blob_size 10.0          # Minimum size of width or height of object in pixels to be searched for
 string color "red"                  # color of the mask to use
 ---
-geometry_msgs/PoseStamped centroid_pose 
+geometry_msgs/PoseStamped centroid_pose
 sensor_msgs/Image color_img
 sensor_msgs/Image color_img_raw
 sensor_msgs/Image mask
