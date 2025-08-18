@@ -1,3 +1,3 @@
-# Dextrous Robotics IVR Interfaces
+# Color Tools Messages
 
-Common messages, services, etc. for IVR interfaces for the dexterous robotics group.
+Common messages, services, etc. for iMETRO applications utilizing the color tools packages from a ROS 2 interface.
