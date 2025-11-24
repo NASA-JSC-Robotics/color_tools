@@ -22,7 +22,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <string>
-#include "cv_bridge/cv_bridge.h"
+#include "cv_bridge/cv_bridge.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "image_transport/image_transport.hpp"
 #include "opencv2/highgui.hpp"

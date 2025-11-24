@@ -35,36 +35,38 @@ endif()
   add_library(${PROJECT_NAME} src/ColorBlobCentroid.cpp)
 
   set(centroid_dependencies
-  rclcpp
-  rclcpp_action
-  rclcpp_components
-  message_filters
-  tf2_ros
-  tf2
-  tf2_geometry_msgs
-  std_msgs
-  sensor_msgs
-  image_transport
-  geometry_msgs
-  cv_bridge
-  color_names
-  color_tools_msgs
-  std_srvs
-  OpenCV)
+    rclcpp
+    rclcpp_action
+    rclcpp_components
+    message_filters
+    tf2_ros
+    tf2
+    tf2_geometry_msgs
+    std_msgs
+    sensor_msgs
+    image_transport
+    geometry_msgs
+    cv_bridge
+    color_names
+    color_tools_msgs
+    std_srvs
+    OpenCV
+  )
 
   set(client_dependencies
-  rclcpp
-  rclcpp_action
-  rclcpp_components
-  tf2
-  tf2_ros
-  std_msgs
-  sensor_msgs
-  image_transport
-  cv_bridge
-  color_names
-  color_tools_msgs
-  OpenCV)
+    rclcpp
+    rclcpp_action
+    rclcpp_components
+    tf2
+    tf2_ros
+    std_msgs
+    sensor_msgs
+    image_transport
+    cv_bridge
+    color_names
+    color_tools_msgs
+    OpenCV
+  )
 
   ament_target_dependencies(${PROJECT_NAME} ${centroid_dependencies})
 
