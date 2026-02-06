@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "color_blob_centroid/ColorBlobCentroid.h"
+#include "color_blob_centroid/color_blob_node.hpp"
 
 using std::placeholders::_1;
 using std::placeholders::_2;

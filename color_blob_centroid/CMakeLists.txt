@@ -32,7 +32,7 @@ endif()
 
   include_directories(include)
 
-  add_library(${PROJECT_NAME} src/ColorBlobCentroid.cpp)
+  add_library(${PROJECT_NAME} src/color_blob_node.cpp)
 
   set(centroid_dependencies
     rclcpp
