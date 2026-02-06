@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include <opencv2/opencv.hpp>
 #include <color_names/ColorNames.h>
+#include <opencv2/opencv.hpp>
 #include "color_tools_msgs/msg/blob_request.hpp"
 #include "color_tools_msgs/msg/blob_result.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
@@ -37,10 +37,8 @@ namespace color_blob_centroid
  * @param request Blob detection parameters
  * @return BlobResult containing pose and images
  */
-color_tools_msgs::msg::BlobResult processBlobs(
-    cv::Mat& colorImage,
-    const cv::Mat& depthImage,
-    const sensor_msgs::msg::CameraInfo& cameraInfo,
-    const color_tools_msgs::msg::BlobRequest& request);
+color_tools_msgs::msg::BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage,
+                                               const sensor_msgs::msg::CameraInfo& cameraInfo,
+                                               const color_tools_msgs::msg::BlobRequest& request);
 
 }  // namespace color_blob_centroid

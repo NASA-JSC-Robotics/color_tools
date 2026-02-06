@@ -64,11 +64,9 @@ sensor_msgs::msg::Image matToImage(const cv::Mat& mat, const std_msgs::msg::Head
 
 }  // anonymous namespace
 
-color_tools_msgs::msg::BlobResult processBlobs(
-    cv::Mat& colorImage,
-    const cv::Mat& depthImage,
-    const sensor_msgs::msg::CameraInfo& cameraInfo,
-    const color_tools_msgs::msg::BlobRequest& request)
+color_tools_msgs::msg::BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage,
+                                               const sensor_msgs::msg::CameraInfo& cameraInfo,
+                                               const color_tools_msgs::msg::BlobRequest& request)
 {
   color_tools_msgs::msg::BlobResult result;
 
@@ -87,10 +85,8 @@ color_tools_msgs::msg::BlobResult processBlobs(
 
   // Morphological operations
   float dilation_size = 1.0;
-  cv::Mat morphology = cv::getStructuringElement(
-      cv::MORPH_RECT,
-      cv::Size(2 * dilation_size + 1, 2 * dilation_size + 1),
-      cv::Point(dilation_size, dilation_size));
+  cv::Mat morphology = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * dilation_size + 1, 2 * dilation_size + 1),
+                                                 cv::Point(dilation_size, dilation_size));
 
   cv::Mat dilated, eroded;
   cv::erode(mask, eroded, morphology);
@@ -123,14 +119,14 @@ color_tools_msgs::msg::BlobResult processBlobs(
     // Draw contour
     if (isDesired)
     {
-      cv::drawContours(colorImage, std::vector<std::vector<cv::Point>>(1, contours[i]),
-                       -1, cv::Scalar(50, 200, 50), 4, cv::LINE_8);
+      cv::drawContours(colorImage, std::vector<std::vector<cv::Point>>(1, contours[i]), -1, cv::Scalar(50, 200, 50), 4,
+                       cv::LINE_8);
       cv::drawContours(mask, contours, i, cv::Scalar(255, 255, 255), cv::FILLED, cv::LINE_8);
     }
     else
     {
-      cv::drawContours(colorImage, std::vector<std::vector<cv::Point>>(1, contours[i]),
-                       -1, cv::Scalar(0, 255, 255), 1, cv::LINE_8);
+      cv::drawContours(colorImage, std::vector<std::vector<cv::Point>>(1, contours[i]), -1, cv::Scalar(0, 255, 255), 1,
+                       cv::LINE_8);
     }
 
     // Calculate centroid
@@ -141,13 +137,11 @@ color_tools_msgs::msg::BlobResult processBlobs(
       continue;
     }
 
-    cv::Point2f momentPt(static_cast<float>(moment.m10 / moment.m00),
-                         static_cast<float>(moment.m01 / moment.m00));
+    cv::Point2f momentPt(static_cast<float>(moment.m10 / moment.m00), static_cast<float>(moment.m01 / moment.m00));
 
     // Draw centroid and label
     cv::circle(colorImage, momentPt, 5, color, -1);
-    cv::putText(colorImage, std::to_string(blobNum),
-                cv::Point2f(momentPt.x - 10, momentPt.y - 25),
+    cv::putText(colorImage, std::to_string(blobNum), cv::Point2f(momentPt.x - 10, momentPt.y - 25),
                 cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
 
     // Process desired blob

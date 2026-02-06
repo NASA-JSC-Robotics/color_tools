@@ -68,8 +68,10 @@ int main(int argc, char** argv)
     static tf2_ros::TransformBroadcaster tf_bc = tf2_ros::TransformBroadcaster(node);
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "position: %f, %f, %f, orientation: %f, %f, %f, %f",
                 result.get()->result.centroid_pose.pose.position.x, result.get()->result.centroid_pose.pose.position.y,
-                result.get()->result.centroid_pose.pose.position.z, result.get()->result.centroid_pose.pose.orientation.x,
-                result.get()->result.centroid_pose.pose.orientation.y, result.get()->result.centroid_pose.pose.orientation.z,
+                result.get()->result.centroid_pose.pose.position.z,
+                result.get()->result.centroid_pose.pose.orientation.x,
+                result.get()->result.centroid_pose.pose.orientation.y,
+                result.get()->result.centroid_pose.pose.orientation.z,
                 result.get()->result.centroid_pose.pose.orientation.w);
     geometry_msgs::msg::TransformStamped t;
     t.header.stamp = node->get_clock()->now();

@@ -167,9 +167,8 @@ void ColorBlobCentroid::publishTransform(const geometry_msgs::msg::PoseStamped& 
   m_tfBroadcasterPtr->sendTransform(ts);
 }
 
-void ColorBlobCentroid::color_blob_find(
-    const std::shared_ptr<color_tools_msgs::srv::BlobCentroid::Request> request,
-    std::shared_ptr<color_tools_msgs::srv::BlobCentroid::Response> response)
+void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::srv::BlobCentroid::Request> request,
+                                        std::shared_ptr<color_tools_msgs::srv::BlobCentroid::Response> response)
 {
   geometry_msgs::msg::PoseStamped blobPos;
   if (sendMockHardwareTransform(blobPos))
@@ -189,8 +188,8 @@ void ColorBlobCentroid::color_blob_find(
 
   // Process using standalone function
   cv::Mat colorImageCopy = m_colorImage.clone();
-  color_tools_msgs::msg::BlobResult result = color_blob_centroid::processBlobs(
-      colorImageCopy, m_depthImage, m_imageInfo, request->request);
+  color_tools_msgs::msg::BlobResult result =
+      color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, request->request);
 
   // Publish images
   m_imagePub->publish(result.color_img);
@@ -201,10 +200,8 @@ void ColorBlobCentroid::color_blob_find(
   if (result.centroid_pose.header.frame_id != "")
   {
     publishTransform(result.centroid_pose);
-    RCLCPP_INFO(this->get_logger(), "Object found at %.3f, %.3f, %.3f",
-                result.centroid_pose.pose.position.x,
-                result.centroid_pose.pose.position.y,
-                result.centroid_pose.pose.position.z);
+    RCLCPP_INFO(this->get_logger(), "Object found at %.3f, %.3f, %.3f", result.centroid_pose.pose.position.x,
+                result.centroid_pose.pose.position.y, result.centroid_pose.pose.position.z);
   }
   else
   {
@@ -220,8 +217,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(
 {
   RCLCPP_INFO(this->get_logger(),
               "Incoming Request - AR: %.2f, AR Thresh: %.2f, Size: %.1f, Size Thresh: %.1f, Color: %s, Prefix: %s",
-              request->aspect_ratio, request->aspect_ratio_threshold,
-              request->size, request->size_threshold,
+              request->aspect_ratio, request->aspect_ratio_threshold, request->size, request->size_threshold,
               request->color.c_str(), request->prefix.c_str());
 
   geometry_msgs::msg::PoseStamped blobPos;
@@ -254,8 +250,8 @@ void ColorBlobCentroid::color_set_blob_dimensions(
 
   // Process using standalone function
   cv::Mat colorImageCopy = m_colorImage.clone();
-  color_tools_msgs::msg::BlobResult result = color_blob_centroid::processBlobs(
-      colorImageCopy, m_depthImage, m_imageInfo, blobRequest);
+  color_tools_msgs::msg::BlobResult result =
+      color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, blobRequest);
 
   // Publish images
   m_imagePub->publish(result.color_img);
@@ -266,10 +262,8 @@ void ColorBlobCentroid::color_set_blob_dimensions(
   if (result.centroid_pose.header.frame_id != "")
   {
     publishTransform(result.centroid_pose);
-    RCLCPP_INFO(this->get_logger(), "Object found at %.3f, %.3f, %.3f",
-                result.centroid_pose.pose.position.x,
-                result.centroid_pose.pose.position.y,
-                result.centroid_pose.pose.position.z);
+    RCLCPP_INFO(this->get_logger(), "Object found at %.3f, %.3f, %.3f", result.centroid_pose.pose.position.x,
+                result.centroid_pose.pose.position.y, result.centroid_pose.pose.position.z);
   }
   else
   {
@@ -279,19 +273,17 @@ void ColorBlobCentroid::color_set_blob_dimensions(
   response->result = result;
 }
 
-void ColorBlobCentroid::toggle_continuous(
-    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
-    std::shared_ptr<std_srvs::srv::SetBool::Response> response)
+void ColorBlobCentroid::toggle_continuous(const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+                                          std::shared_ptr<std_srvs::srv::SetBool::Response> response)
 {
   RCLCPP_INFO(this->get_logger(), "Continuous output set to %d", request->data);
   m_continuousColor = request->data;
   response->success = true;
 }
 
-void ColorBlobCentroid::imageCallback(
-    const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
-    const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
-    const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
+void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& colorImMsgA,
+                                      const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
+                                      const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
 {
   m_colorImage = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);
   m_depthImage = cv::Mat(cv_bridge::toCvCopy(depthImMsgA)->image);
@@ -313,21 +305,21 @@ void ColorBlobCentroid::imageCallback(
   if (m_continuousColor)
   {
     cv::Mat colorImageCopy = m_colorImage.clone();
-    color_tools_msgs::msg::BlobResult result = color_blob_centroid::processBlobs(
-        colorImageCopy, m_depthImage, m_imageInfo, m_currentRequest);
+    color_tools_msgs::msg::BlobResult result =
+        color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, m_currentRequest);
 
     if (result.centroid_pose.header.frame_id != "")
     {
       publishTransform(result.centroid_pose);
     }
 
-  if (m_showImage && !m_mockHardware)
-  if (m_showImage && !m_mockHardware)
     if (m_showImage && !m_mockHardware)
-    {
-      cv::imshow("img", colorImageCopy);
-      cv::waitKey(1);  // set to 1 for continuous output, set to 0 for single frame forever
-    }
+      if (m_showImage && !m_mockHardware)
+        if (m_showImage && !m_mockHardware)
+        {
+          cv::imshow("img", colorImageCopy);
+          cv::waitKey(1);  // set to 1 for continuous output, set to 0 for single frame forever
+        }
   }
 }
 

@@ -32,10 +32,10 @@
 #include "tf2/LinearMath/Quaternion.h"
 
 #include <color_names/ColorNames.h>
-#include "color_tools_msgs/srv/blob_centroid.hpp"
-#include "color_tools_msgs/srv/blob_dimensions.hpp"
 #include "color_tools_msgs/msg/blob_request.hpp"
 #include "color_tools_msgs/msg/blob_result.hpp"
+#include "color_tools_msgs/srv/blob_centroid.hpp"
+#include "color_tools_msgs/srv/blob_dimensions.hpp"
 
 #include <geometry_msgs/msg/pose_stamped.h>
 #include <geometry_msgs/msg/quaternion.h>
