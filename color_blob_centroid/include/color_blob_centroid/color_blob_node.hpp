@@ -22,7 +22,6 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <string>
-#include <cv_bridge/cv_bridge.h>
 #include "geometry_msgs/msg/pose.hpp"
 #include "image_transport/image_transport.hpp"
 #include "opencv2/highgui.hpp"
@@ -43,6 +42,13 @@
 #include <geometry_msgs/msg/transform_stamped.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
+// Support humble and jazzy+
+#if __has_include(<cv_bridge/cv_bridge.hpp>)
+#include <cv_bridge/cv_bridge.hpp>
+#else
+#include <cv_bridge/cv_bridge.h>
+#endif
 
 class ColorBlobCentroid : public rclcpp::Node
 {

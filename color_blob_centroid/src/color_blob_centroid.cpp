@@ -19,7 +19,13 @@
 
 #include "color_blob_centroid/color_blob_centroid.hpp"
 #include "sensor_msgs/image_encodings.hpp"
+
+// Support humble and jazzy+
+#if __has_include(<cv_bridge/cv_bridge.hpp>)
+#include <cv_bridge/cv_bridge.hpp>
+#else
 #include <cv_bridge/cv_bridge.h>
+#endif
 
 namespace color_blob_centroid
 {
