@@ -103,6 +103,10 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}/)
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(color_blob_centroid_test test/color_blob_centroid_test.cpp)
+  target_link_libraries(color_blob_centroid_test color_blob_centroid ${OpenCV_LIBS})
+  ament_target_dependencies(color_blob_centroid_test ${dependencies})
 endif()
 
 ament_export_include_directories(include)
