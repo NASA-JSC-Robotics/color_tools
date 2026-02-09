@@ -103,61 +103,68 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}/)
 
 # Optionally build and install the nanobind python bindings
-find_package(Python 3.8 COMPONENTS Interpreter Development REQUIRED)
-find_package(ament_cmake_python REQUIRED)
-find_package(builtin_interfaces REQUIRED)
-find_package(rosidl_generator_cpp REQUIRED)
+option(BUILD_BINDINGS "Build Python bindings using nanobind" ON)
 
-include(FetchContent)
-FetchContent_Declare(
-  nanobind
-  GIT_REPOSITORY https://github.com/wjakob/nanobind.git
-  GIT_TAG v2.11.0
-)
-FetchContent_MakeAvailable(nanobind)
+if(BUILD_BINDINGS)
+  find_package(Python 3.8 COMPONENTS Interpreter Development REQUIRED)
+  find_package(ament_cmake_python REQUIRED)
+  find_package(builtin_interfaces REQUIRED)
+  find_package(rosidl_generator_cpp REQUIRED)
 
-nanobind_add_module(
-  bindings
-  STABLE_ABI
-  NB_STATIC
-  src/bindings.cpp
-)
-target_include_directories(bindings PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-  ${rosidl_generator_cpp_INCLUDE_DIRS}
-)
-set_property(TARGET bindings PROPERTY CXX_STANDARD 20)
-target_link_libraries(bindings PRIVATE
-  color_blob_centroid
-  ${sensor_msgs_TARGETS}
-  ${color_tools_msgs_TARGETS}
-  ${rosidl_generator_cpp_TARGETS}
-)
-ament_python_install_package(${PROJECT_NAME})
-ament_get_python_install_dir(PYTHON_INSTALL_DIR)
-install(TARGETS bindings
-  LIBRARY DESTINATION "${PYTHON_INSTALL_DIR}/color_blob_centroid"
-)
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/__init__.py "")
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/__init__.py
-  DESTINATION "${PYTHON_INSTALL_DIR}/color_blob_centroid"
-)
+  include(FetchContent)
+  FetchContent_Declare(
+    nanobind
+    GIT_REPOSITORY https://github.com/wjakob/nanobind.git
+    GIT_TAG v2.11.0
+  )
+  FetchContent_MakeAvailable(nanobind)
+
+  nanobind_add_module(
+    bindings
+    STABLE_ABI
+    NB_STATIC
+    src/bindings.cpp
+  )
+  target_include_directories(bindings PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+    ${rosidl_generator_cpp_INCLUDE_DIRS}
+  )
+  set_property(TARGET bindings PROPERTY CXX_STANDARD 20)
+  target_link_libraries(bindings PRIVATE
+    color_blob_centroid
+    ${sensor_msgs_TARGETS}
+    ${color_tools_msgs_TARGETS}
+    ${rosidl_generator_cpp_TARGETS}
+  )
+  ament_python_install_package(${PROJECT_NAME})
+  ament_get_python_install_dir(PYTHON_INSTALL_DIR)
+  install(TARGETS bindings
+    LIBRARY DESTINATION "${PYTHON_INSTALL_DIR}/color_blob_centroid"
+  )
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/__init__.py "")
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/__init__.py
+    DESTINATION "${PYTHON_INSTALL_DIR}/color_blob_centroid"
+  )
+endif()
 
 # Include tests
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
-  find_package(ament_cmake_pytest REQUIRED)
 
   ament_add_gtest(color_blob_centroid_test test/color_blob_centroid_test.cpp)
   target_link_libraries(color_blob_centroid_test color_blob_centroid ${OpenCV_LIBS})
   ament_target_dependencies(color_blob_centroid_test ${dependencies})
 
-  ament_get_python_install_dir(PYTHON_INSTALL_DIR)
-  ament_add_pytest_test(test_color_blob_centroid_py test/test_color_blob_centroid.py
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../
-    APPEND_ENV PYTHONPATH=${CMAKE_INSTALL_PREFIX}/${PYTHON_INSTALL_DIR}
-  )
+
+  if(BUILD_BINDINGS)
+    find_package(ament_cmake_pytest REQUIRED)
+    ament_get_python_install_dir(PYTHON_INSTALL_DIR)
+    ament_add_pytest_test(test_color_blob_centroid_py test/test_color_blob_centroid.py
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../
+      APPEND_ENV PYTHONPATH=${CMAKE_INSTALL_PREFIX}/${PYTHON_INSTALL_DIR}
+    )
+  endif()
 endif()
 
 ament_export_include_directories(include)
