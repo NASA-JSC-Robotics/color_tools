@@ -32,7 +32,7 @@ namespace color_blob_centroid
  * @brief Process color and depth images to find colored blobs
  *
  * @param colorImage BGR color image (will be annotated in place)
- * @param depthImage Depth image (CV_32FC1 in meters)
+ * @param depthImage Depth image
  * @param cameraInfo Camera intrinsic parameters
  * @param request Blob detection parameters
  * @return BlobResult containing pose and images
@@ -40,5 +40,20 @@ namespace color_blob_centroid
 color_tools_msgs::msg::BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage,
                                                const sensor_msgs::msg::CameraInfo& cameraInfo,
                                                const color_tools_msgs::msg::BlobRequest& request);
+
+/**
+ * @brief Process ROS color and depth images to find colored blobs
+ *
+ * @param colorImage BGR color image as sensor_msgs::Image
+ * @param depthImage Depth image as sensor_msgs::Image
+ * @param cameraInfo Camera intrinsic parameters
+ * @param request Blob detection parameters
+ * @return BlobResult containing pose and images
+ */
+color_tools_msgs::msg::BlobResult processBlobs(
+    const sensor_msgs::msg::Image& colorImage,
+    const sensor_msgs::msg::Image& depthImage,
+    const sensor_msgs::msg::CameraInfo& cameraInfo,
+    const color_tools_msgs::msg::BlobRequest& request);
 
 }  // namespace color_blob_centroid
