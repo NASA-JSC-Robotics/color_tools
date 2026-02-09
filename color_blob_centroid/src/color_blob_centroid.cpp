@@ -195,11 +195,10 @@ color_tools_msgs::msg::BlobResult processBlobs(cv::Mat& colorImage, const cv::Ma
   return result;
 }
 
-color_tools_msgs::msg::BlobResult processBlobs(
-   const sensor_msgs::msg::Image& colorImage,
-   const sensor_msgs::msg::Image& depthImage,
-   const sensor_msgs::msg::CameraInfo& cameraInfo,
-   const color_tools_msgs::msg::BlobRequest& request)
+color_tools_msgs::msg::BlobResult processBlobs(const sensor_msgs::msg::Image& colorImage,
+                                               const sensor_msgs::msg::Image& depthImage,
+                                               const sensor_msgs::msg::CameraInfo& cameraInfo,
+                                               const color_tools_msgs::msg::BlobRequest& request)
 {
   // Convert images
   cv::Mat colorMat = cv::Mat(cv_bridge::toCvCopy(colorImage, "bgr8")->image);

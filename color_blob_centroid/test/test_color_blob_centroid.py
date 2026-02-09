@@ -29,9 +29,7 @@ def test_detects_red_blob():
     # Configure a dummy test camera
     camera_info = CameraInfo()
     camera_info.header.frame_id = "test_camera"
-    camera_info.k = [500.0, 0.0, 320.0,
-                     0.0, 500.0, 240.0,
-                     0.0, 0.0, 1.0]
+    camera_info.k = [500.0, 0.0, 320.0, 0.0, 500.0, 240.0, 0.0, 0.0, 1.0]
     camera_info.height = 480
     camera_info.width = 640
 
@@ -61,9 +59,10 @@ def test_detects_red_blob():
 
     # Verify blob was found
     assert result.centroid_pose.header.frame_id != "", "Frame ID should not be empty"
-    assert abs(result.centroid_pose.pose.position.z - 0.5) < 0.01, \
-        f"Expected z position ~0.5, got {result.centroid_pose.pose.position.z}"
+    assert (
+        abs(result.centroid_pose.pose.position.z - 0.5) < 0.01
+    ), f"Expected z position ~0.5, got {result.centroid_pose.pose.position.z}"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_detects_red_blob()

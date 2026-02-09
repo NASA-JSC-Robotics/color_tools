@@ -17,18 +17,16 @@
  * under the License.
  */
 
+#include "color_blob_centroid/color_blob_centroid.hpp"
 #include <gtest/gtest.h>
 #include <opencv2/opencv.hpp>
-#include "color_blob_centroid/color_blob_centroid.hpp"
 
 TEST(ProcessBlobsTest, DetectsRedBlob)
 {
   // Configure a dummy test camera
   sensor_msgs::msg::CameraInfo cameraInfo;
   cameraInfo.header.frame_id = "test_camera";
-  cameraInfo.k = {500.0, 0.0, 320.0,
-                  0.0, 500.0, 240.0,
-                  0.0, 0.0, 1.0};
+  cameraInfo.k = { 500.0, 0.0, 320.0, 0.0, 500.0, 240.0, 0.0, 0.0, 1.0 };
 
   // Generate a black image with a 50 pixel red circle in the middle.
   // Depth image universally 0.5 m away.
@@ -42,8 +40,7 @@ TEST(ProcessBlobsTest, DetectsRedBlob)
   request.min_blob_size = 10.0;
   request.desired_blob = 0;
 
-  const auto result = color_blob_centroid::processBlobs(
-      colorImage, depthImage, cameraInfo, request);
+  const auto result = color_blob_centroid::processBlobs(colorImage, depthImage, cameraInfo, request);
 
   // Verify blob was found
   // TODO: Verify the pose?

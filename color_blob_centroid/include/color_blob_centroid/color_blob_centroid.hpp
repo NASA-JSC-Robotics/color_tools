@@ -50,10 +50,9 @@ color_tools_msgs::msg::BlobResult processBlobs(cv::Mat& colorImage, const cv::Ma
  * @param request Blob detection parameters
  * @return BlobResult containing pose and images
  */
-color_tools_msgs::msg::BlobResult processBlobs(
-    const sensor_msgs::msg::Image& colorImage,
-    const sensor_msgs::msg::Image& depthImage,
-    const sensor_msgs::msg::CameraInfo& cameraInfo,
-    const color_tools_msgs::msg::BlobRequest& request);
+color_tools_msgs::msg::BlobResult processBlobs(const sensor_msgs::msg::Image& colorImage,
+                                               const sensor_msgs::msg::Image& depthImage,
+                                               const sensor_msgs::msg::CameraInfo& cameraInfo,
+                                               const color_tools_msgs::msg::BlobRequest& request);
 
 }  // namespace color_blob_centroid
