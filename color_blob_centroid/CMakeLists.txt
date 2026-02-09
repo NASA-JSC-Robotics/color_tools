@@ -168,7 +168,7 @@ if(BUILD_TESTING)
 endif()
 
 ament_export_include_directories(include)
-ament_export_libraries(color_blob_processor)
+ament_export_libraries(color_blob_centroid)
 ament_export_dependencies(${dependencies})
 
 ament_package()
