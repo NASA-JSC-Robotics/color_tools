@@ -58,6 +58,7 @@ def test_detects_red_blob():
     )
 
     # Verify blob was found
+    assert result.success
     assert result.centroid_pose.header.frame_id != "", "Frame ID should not be empty"
     assert (
         abs(result.centroid_pose.pose.position.z - 0.5) < 0.01

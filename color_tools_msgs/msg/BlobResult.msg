@@ -1,3 +1,4 @@
+bool success
 geometry_msgs/PoseStamped centroid_pose
 sensor_msgs/Image color_img
 sensor_msgs/Image color_img_raw

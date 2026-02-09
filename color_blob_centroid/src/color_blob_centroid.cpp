@@ -72,6 +72,7 @@ color_tools_msgs::msg::BlobResult processBlobs(cv::Mat& colorImage, const cv::Ma
 
   if (colorImage.empty())
   {
+    result.success = false;
     return result;
   }
 
@@ -147,6 +148,7 @@ color_tools_msgs::msg::BlobResult processBlobs(cv::Mat& colorImage, const cv::Ma
     // Process desired blob
     if (isDesired)
     {
+      result.success = true;
       double depth = depthImage.at<float>(momentPt);
 
       if (depth != 0.0)

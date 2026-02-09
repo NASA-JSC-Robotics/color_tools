@@ -43,9 +43,11 @@ TEST(ProcessBlobsTest, DetectsRedBlob)
   const auto result = color_blob_centroid::processBlobs(colorImage, depthImage, cameraInfo, request);
 
   // Verify blob was found
-  // TODO: Verify the pose?
+  EXPECT_TRUE(result.success);
   EXPECT_NE(result.centroid_pose.header.frame_id, "");
   EXPECT_NEAR(result.centroid_pose.pose.position.z, 0.5, 0.01);
+  EXPECT_NEAR(result.centroid_pose.pose.position.x, 0.0, 0.01);
+  EXPECT_NEAR(result.centroid_pose.pose.position.y, 0.0, 0.01);
 }
 
 int main(int argc, char** argv)
