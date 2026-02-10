@@ -133,11 +133,8 @@ void ColorBlobCentroid::initialize()
  * Mock Hardware - Helper for when testing color blob on system without use of a
  *camera
  *****************/
-bool ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStamped& blobPos)
+void ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStamped& blobPos)
 {
-  if (!m_mockHardware)
-    return false;
-
   RCLCPP_INFO(this->get_logger(), "!!!!! MOCK HARDWARE ENABLED - outputting fake response. !!!!!");
   rclcpp::Time now = this->get_clock()->now();
   blobPos.header.frame_id = m_prefix + "_color_optical_frame";
@@ -152,7 +149,6 @@ bool ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStampe
   RCLCPP_INFO(this->get_logger(), "MSG -> x:0 y:0 z:0.5 --- qx:0 qy:0 qz:0 qw:1");
 
   publishTransform(blobPos);
-  return true;
 }
 
 void ColorBlobCentroid::publishTransform(const geometry_msgs::msg::PoseStamped& pose)
@@ -170,10 +166,11 @@ void ColorBlobCentroid::publishTransform(const geometry_msgs::msg::PoseStamped& 
 void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::srv::BlobCentroid::Request> request,
                                         std::shared_ptr<color_tools_msgs::srv::BlobCentroid::Response> response)
 {
-  geometry_msgs::msg::PoseStamped blobPos;
-  if (sendMockHardwareTransform(blobPos))
-  {
-    response->result.centroid_pose = blobPos;
+  // handle mock hardware
+  if (m_mockHardware) {
+    geometry_msgs::msg::PoseStamped blobPos;
+    sendMockHardwareTransform(blobPos);
+    response->centroid_pose = blobPos;
     return;
   }
 
@@ -184,12 +181,12 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::
   }
 
   RCLCPP_INFO(this->get_logger(), "Incoming Request - Min Blob Size: %.1f, Color: %s, Image prefix: %s",
-              request->request.min_blob_size, request->request.color.c_str(), m_prefix.c_str());
+              request->min_blob_size, request->color.c_str(), m_prefix.c_str());
 
   // Process using standalone function
   cv::Mat colorImageCopy = m_colorImage.clone();
-  color_tools_msgs::msg::BlobResult result =
-      color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, request->request);
+  const auto result = color_blob_centroid::processBlobs(
+    colorImageCopy, m_depthImage, m_imageInfo, request->color, request->min_blob_size, request->desired_blob);
 
   // Publish images
   m_imagePub->publish(result.color_img);
@@ -208,7 +205,12 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::
     RCLCPP_ERROR(this->get_logger(), "FAILED to find object in image frame");
   }
 
-  response->result = result;
+  response->centroid_pose = result.centroid_pose;
+  response->color_img = result.color_img;
+  response->color_img_raw = result.color_img_raw;
+  response->mask = result.mask;
+  response->depth_img = result.depth_img;
+  response->cam_info = m_imageInfo;
 }
 
 void ColorBlobCentroid::color_set_blob_dimensions(
@@ -219,11 +221,11 @@ void ColorBlobCentroid::color_set_blob_dimensions(
               "Incoming Request - AR: %.2f, AR Thresh: %.2f, Size: %.1f, Size Thresh: %.1f, Color: %s, Prefix: %s",
               request->aspect_ratio, request->aspect_ratio_threshold, request->size, request->size_threshold,
               request->color.c_str(), request->prefix.c_str());
-
-  geometry_msgs::msg::PoseStamped blobPos;
-  if (sendMockHardwareTransform(blobPos))
-  {
-    response->result.centroid_pose = blobPos;
+  // handle mock hardware
+  if (m_mockHardware) {
+    geometry_msgs::msg::PoseStamped blobPos;
+    sendMockHardwareTransform(blobPos);
+    response->centroid_pose = blobPos;
     return;
   }
 
@@ -243,15 +245,14 @@ void ColorBlobCentroid::color_set_blob_dimensions(
   }
 
   // Build request message
-  color_tools_msgs::msg::BlobRequest blobRequest;
-  blobRequest.desired_blob = request->desired_blob;
-  blobRequest.min_blob_size = request->size > 0 ? request->size - request->size_threshold : 10.0;
-  blobRequest.color = request->color.empty() ? "red" : request->color;
+  const uint8_t desired_blob = request->desired_blob;
+  const double min_blob_size = request->size > 0 ? request->size - request->size_threshold : 10.0;
+  const std::string color = request->color.empty() ? "red" : request->color;
 
   // Process using standalone function
   cv::Mat colorImageCopy = m_colorImage.clone();
-  color_tools_msgs::msg::BlobResult result =
-      color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, blobRequest);
+  const auto result =
+      color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, color, min_blob_size, desired_blob);
 
   // Publish images
   m_imagePub->publish(result.color_img);
@@ -270,7 +271,12 @@ void ColorBlobCentroid::color_set_blob_dimensions(
     RCLCPP_ERROR(this->get_logger(), "FAILED to find object in image frame");
   }
 
-  response->result = result;
+  response->centroid_pose = result.centroid_pose;
+  response->color_img = result.color_img;
+  response->color_img_raw = result.color_img_raw;
+  response->mask = result.mask;
+  response->depth_img = result.depth_img;
+  response->cam_info = m_imageInfo;
 }
 
 void ColorBlobCentroid::toggle_continuous(const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
@@ -305,8 +311,8 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
   if (m_continuousColor)
   {
     cv::Mat colorImageCopy = m_colorImage.clone();
-    color_tools_msgs::msg::BlobResult result =
-        color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, m_currentRequest);
+    const auto result =
+      color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, m_currentRequest.color, m_currentRequest.min_blob_size, m_currentRequest.desired_blob);
 
     if (result.centroid_pose.header.frame_id != "")
     {
@@ -314,12 +320,10 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
     }
 
     if (m_showImage && !m_mockHardware)
-      if (m_showImage && !m_mockHardware)
-        if (m_showImage && !m_mockHardware)
-        {
-          cv::imshow("img", colorImageCopy);
-          cv::waitKey(1);  // set to 1 for continuous output, set to 0 for single frame forever
-        }
+    {
+      cv::imshow("img", colorImageCopy);
+      cv::waitKey(1);  // set to 1 for continuous output, set to 0 for single frame forever
+    }
   }
 }
 

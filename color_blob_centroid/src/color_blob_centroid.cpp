@@ -64,12 +64,13 @@ sensor_msgs::msg::Image matToImage(const cv::Mat& mat, const std_msgs::msg::Head
 
 }  // anonymous namespace
 
-color_tools_msgs::msg::BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage,
+BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage,
                                                const sensor_msgs::msg::CameraInfo& cameraInfo,
-                                               const color_tools_msgs::msg::BlobRequest& request)
+                                               const std::string blob_color,
+                                               const double min_blob_size,
+                                               const uint8_t desired_blob)
 {
-  color_tools_msgs::msg::BlobResult result;
-
+  BlobResult result;
   if (colorImage.empty())
   {
     result.success = false;
@@ -82,7 +83,7 @@ color_tools_msgs::msg::BlobResult processBlobs(cv::Mat& colorImage, const cv::Ma
   // Create color mask
   cv::Mat mask;
   ColorNames colorNames;
-  colorNames.createColorMask(colorImage, request.color, mask);
+  colorNames.createColorMask(colorImage, blob_color, mask);
 
   // Morphological operations
   float dilation_size = 1.0;
@@ -109,12 +110,12 @@ color_tools_msgs::msg::BlobResult processBlobs(cv::Mat& colorImage, const cv::Ma
   {
     cv::RotatedRect rotRect = cv::minAreaRect(contours[i]);
 
-    if (!checkValidContour(rotRect, request.min_blob_size))
+    if (!checkValidContour(rotRect, min_blob_size))
     {
       continue;
     }
 
-    bool isDesired = (request.desired_blob == blobNum);
+    bool isDesired = (desired_blob == blobNum);
     cv::Scalar color = isDesired ? cv::Scalar(70, 255, 70) : cv::Scalar(255, 255, 255);
 
     // Draw contour
@@ -192,27 +193,8 @@ color_tools_msgs::msg::BlobResult processBlobs(cv::Mat& colorImage, const cv::Ma
   result.color_img_raw = matToImage(colorImageRaw, cameraInfo.header, sensor_msgs::image_encodings::BGR8);
   result.mask = matToImage(mask, cameraInfo.header, sensor_msgs::image_encodings::MONO8);
   result.depth_img = matToImage(depthImage, cameraInfo.header, sensor_msgs::image_encodings::TYPE_32FC1);
-  result.cam_info = cameraInfo;
 
   return result;
-}
-
-color_tools_msgs::msg::BlobResult processBlobs(const sensor_msgs::msg::Image& colorImage,
-                                               const sensor_msgs::msg::Image& depthImage,
-                                               const sensor_msgs::msg::CameraInfo& cameraInfo,
-                                               const color_tools_msgs::msg::BlobRequest& request)
-{
-  // Convert images
-  cv::Mat colorMat = cv::Mat(cv_bridge::toCvCopy(colorImage, "bgr8")->image);
-  cv::Mat depthMat = cv::Mat(cv_bridge::toCvCopy(depthImage)->image);
-
-  // Normalize depth to CV_32FC1 in meters
-  if (depthMat.type() == CV_16UC1)
-  {
-    depthMat.convertTo(depthMat, CV_32FC1, 0.001);  // mm to meters
-  }
-
-  return processBlobs(colorMat, depthMat, cameraInfo, request);
 }
 
 }  // namespace color_blob_centroid

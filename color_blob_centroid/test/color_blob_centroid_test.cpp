@@ -35,12 +35,11 @@ TEST(ProcessBlobsTest, DetectsRedBlob)
   cv::Mat depthImage(480, 640, CV_32FC1, cv::Scalar(0.5));
 
   // Send and process request for a red blob
-  color_tools_msgs::msg::BlobRequest request;
-  request.color = "red";
-  request.min_blob_size = 10.0;
-  request.desired_blob = 0;
+  const std::string color = "red";
+  const float min_blob_size = 10.0;
+  const uint8_t desired_blob = 0;
 
-  const auto result = color_blob_centroid::processBlobs(colorImage, depthImage, cameraInfo, request);
+  const auto result = color_blob_centroid::processBlobs(colorImage, depthImage, cameraInfo, "red", min_blob_size, desired_blob);
 
   // Verify blob was found
   EXPECT_TRUE(result.success);

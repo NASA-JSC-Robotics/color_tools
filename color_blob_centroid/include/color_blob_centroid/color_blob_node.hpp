@@ -60,7 +60,7 @@ private:
   void initialize();
 
   /* Helpers */
-  bool sendMockHardwareTransform(geometry_msgs::msg::PoseStamped& blobPos);
+  void sendMockHardwareTransform(geometry_msgs::msg::PoseStamped& blobPos);
   void publishTransform(const geometry_msgs::msg::PoseStamped& pose);
 
   /* Services */
