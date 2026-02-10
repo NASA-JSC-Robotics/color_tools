@@ -20,7 +20,6 @@
 import numpy as np
 import cv2
 from sensor_msgs.msg import CameraInfo
-from color_tools_msgs.msg import BlobRequest, BlobResult
 from cv_bridge import CvBridge
 from color_blob_centroid import bindings
 
@@ -43,25 +42,25 @@ def test_detects_red_blob():
     color_image_msg = bridge.cv2_to_imgmsg(color_image_cv, encoding="bgr8")
     depth_image_msg = bridge.cv2_to_imgmsg(depth_image_cv, encoding="32FC1")
 
-    # Send and process request for a red blob
-    request = BlobRequest()
-    request.color = "red"
+    # Create and populate the request
+    request = bindings.BlobRequest()
+    request.blob_color = "red"
     request.min_blob_size = 10.0
     request.desired_blob = 0
+    request.set_color_img(color_image_msg)
+    request.set_depth_img(depth_image_msg)
+    request.set_camera_info(camera_info)
 
-    result = bindings.process_blobs(
-        color_image_msg,
-        depth_image_msg,
-        camera_info,
-        request,
-        BlobResult,
-    )
+    # Process the request
+    result = bindings.process_blobs(request)
 
     # Verify blob was found
-    assert result.success
-    assert result.centroid_pose.header.frame_id != "", "Frame ID should not be empty"
+    assert result.success, f"Processing failed: {result.err_msg}"
+    centroid_pose = result.get_centroid_pose()
+    print(centroid_pose)
+    assert centroid_pose.header.frame_id != "", "Frame ID should not be empty"
     assert (
-        abs(result.centroid_pose.pose.position.z - 0.5) < 0.01
+        abs(centroid_pose.pose.position.z - 0.5) < 0.01
     ), f"Expected z position ~0.5, got {result.centroid_pose.pose.position.z}"
 
 
