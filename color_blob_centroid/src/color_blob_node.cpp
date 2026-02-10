@@ -91,6 +91,11 @@ void ColorBlobCentroid::initialize()
   m_showImage = this->get_parameter("show_image").as_bool();
   RCLCPP_INFO(this->get_logger(), "Show Image set to %s", m_showImage ? "true" : "false");
 
+  // timeout for stale messages
+  this->declare_parameter("stale_message_timeout", 5.0);
+  m_staleMessageTimeout = this->get_parameter("show_image").as_double();
+  RCLCPP_INFO(this->get_logger(), "Stale message timeout set to %f", m_staleMessageTimeout);
+
   // verbose debug mode that shows underlying color
   this->declare_parameter("debug", false);
   m_debugMode = this->get_parameter("debug").as_bool();
@@ -120,7 +125,7 @@ void ColorBlobCentroid::initialize()
 
   // Construct service servers.
   m_processing_srv = this->create_service<std_srvs::srv::SetBool>(
-      "color_toggle_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
+      "set_continuous", std::bind(&ColorBlobCentroid::toggle_continuous, this, _1, _2));
   m_color_srv = this->create_service<color_tools_msgs::srv::BlobDimensions>(
       "color_set_blob_dimensions", std::bind(&ColorBlobCentroid::color_set_blob_dimensions, this, _1, _2));
   m_color_simple_srv = this->create_service<color_tools_msgs::srv::BlobCentroid>(
@@ -133,9 +138,10 @@ void ColorBlobCentroid::initialize()
  * Mock Hardware - Helper for when testing color blob on system without use of a
  *camera
  *****************/
-void ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStamped& blobPos)
+geometry_msgs::msg::PoseStamped ColorBlobCentroid::sendMockHardwareTransform()
 {
   RCLCPP_INFO(this->get_logger(), "!!!!! MOCK HARDWARE ENABLED - outputting fake response. !!!!!");
+  geometry_msgs::msg::PoseStamped blobPos;
   rclcpp::Time now = this->get_clock()->now();
   blobPos.header.frame_id = m_prefix + "_color_optical_frame";
   blobPos.header.stamp = now;
@@ -147,8 +153,8 @@ void ColorBlobCentroid::sendMockHardwareTransform(geometry_msgs::msg::PoseStampe
   blobPos.pose.orientation.z = 0;
   blobPos.pose.orientation.w = 1;
   RCLCPP_INFO(this->get_logger(), "MSG -> x:0 y:0 z:0.5 --- qx:0 qy:0 qz:0 qw:1");
-
   publishTransform(blobPos);
+  return blobPos;
 }
 
 void ColorBlobCentroid::publishTransform(const geometry_msgs::msg::PoseStamped& pose)
@@ -169,8 +175,7 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::
   // handle mock hardware
   if (m_mockHardware)
   {
-    geometry_msgs::msg::PoseStamped blobPos;
-    sendMockHardwareTransform(blobPos);
+    const auto blobPos = sendMockHardwareTransform();
     response->centroid_pose = blobPos;
     return;
   }
@@ -178,6 +183,16 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::
   if (m_colorImage.empty())
   {
     RCLCPP_ERROR(this->get_logger(), "ERROR - No image. Check that image topics exist and data is flowing.");
+    return;
+  }
+
+  // Check for a timeout
+  rclcpp::Time image_time(m_imageInfo.header.stamp);
+  rclcpp::Time current_time = this->now();
+  if ((current_time - image_time).seconds() > m_staleMessageTimeout)
+  {
+    RCLCPP_ERROR(this->get_logger(),
+                 "ERROR - Image has gone stale. Check that image topics exist and data is flowing.");
     return;
   }
 
@@ -225,8 +240,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(
   // handle mock hardware
   if (m_mockHardware)
   {
-    geometry_msgs::msg::PoseStamped blobPos;
-    sendMockHardwareTransform(blobPos);
+    const auto blobPos = sendMockHardwareTransform();
     response->centroid_pose = blobPos;
     return;
   }

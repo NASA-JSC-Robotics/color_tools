@@ -60,7 +60,7 @@ private:
   void initialize();
 
   /* Helpers */
-  void sendMockHardwareTransform(geometry_msgs::msg::PoseStamped& blobPos);
+  geometry_msgs::msg::PoseStamped sendMockHardwareTransform();
   void publishTransform(const geometry_msgs::msg::PoseStamped& pose);
 
   /* Services */
@@ -84,6 +84,7 @@ private:
   double m_blobSizeThreshold;
   double m_blobAspectRatio;
   double m_blobARThreshold;
+  double m_staleMessageTimeout;
 
   std::string m_prefix;
   std::string m_depth_topic;
