@@ -1,7 +1,0 @@
-bool success
-geometry_msgs/PoseStamped centroid_pose
-sensor_msgs/Image color_img
-sensor_msgs/Image color_img_raw
-sensor_msgs/Image mask
-sensor_msgs/Image depth_img
-sensor_msgs/CameraInfo cam_info

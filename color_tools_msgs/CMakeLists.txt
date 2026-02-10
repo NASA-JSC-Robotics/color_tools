@@ -17,18 +17,12 @@ find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 
-set(msg_files
-  "msg/BlobRequest.msg"
-  "msg/BlobResult.msg"
-)
-
 set(service_files
   "srv/BlobDimensions.srv"
   "srv/BlobCentroid.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  ${msg_files}
   ${service_files}
   DEPENDENCIES
     std_msgs
