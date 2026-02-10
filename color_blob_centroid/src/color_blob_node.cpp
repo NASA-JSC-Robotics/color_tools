@@ -133,6 +133,35 @@ void ColorBlobCentroid::initialize()
   RCLCPP_INFO(this->get_logger(), "Ready to process images on service request");
 }
 
+color_blob_centroid::BlobResult
+ColorBlobCentroid::processBlobsAndPublish(const color_blob_centroid::BlobRequest& blob_request)
+{
+  auto result = color_blob_centroid::processBlobs(blob_request);
+  if (!result.success)
+  {
+    RCLCPP_ERROR_STREAM(this->get_logger(), "FAILED to process blobs: " << result.err_msg);
+  }
+
+  // Publish images
+  m_imagePub->publish(result.color_img);
+  m_imageRawPub->publish(result.color_img_raw);
+  m_maskPub->publish(result.mask);
+
+  // Publish transform if pose is valid
+  if (result.centroid_pose.header.frame_id != "")
+  {
+    publishTransform(result.centroid_pose);
+    RCLCPP_INFO(this->get_logger(), "Object found at %.3f, %.3f, %.3f", result.centroid_pose.pose.position.x,
+                result.centroid_pose.pose.position.y, result.centroid_pose.pose.position.z);
+  }
+  else
+  {
+    RCLCPP_ERROR(this->get_logger(), "FAILED to find object in image frame");
+  }
+
+  return result;
+}
+
 /****************
  * Mock Hardware - Helper for when testing color blob on system without use of a
  *camera
@@ -202,29 +231,7 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::
   blob_request.desired_blob = request->desired_blob;
 
   // Process using standalone function
-  const auto result = color_blob_centroid::processBlobs(blob_request);
-
-  if (!result.success)
-  {
-    RCLCPP_ERROR_STREAM(this->get_logger(), "FAILED to process blobs: " << result.err_msg);
-  }
-
-  // Publish images
-  m_imagePub->publish(result.color_img);
-  m_imageRawPub->publish(result.color_img_raw);
-  m_maskPub->publish(result.mask);
-
-  // Publish transform if pose is valid
-  if (result.centroid_pose.header.frame_id != "")
-  {
-    publishTransform(result.centroid_pose);
-    RCLCPP_INFO(this->get_logger(), "Object found at %.3f, %.3f, %.3f", result.centroid_pose.pose.position.x,
-                result.centroid_pose.pose.position.y, result.centroid_pose.pose.position.z);
-  }
-  else
-  {
-    RCLCPP_ERROR(this->get_logger(), "FAILED to find object in image frame");
-  }
+  const auto result = processBlobsAndPublish(blob_request);
 
   response->centroid_pose = result.centroid_pose;
   response->color_img = result.color_img;
@@ -269,29 +276,7 @@ void ColorBlobCentroid::color_set_blob_dimensions(
   blob_request.desired_blob = request->desired_blob;
 
   // Process using standalone function
-  const auto result = color_blob_centroid::processBlobs(blob_request);
-
-  if (!result.success)
-  {
-    RCLCPP_ERROR_STREAM(this->get_logger(), "FAILED to process blobs: " << result.err_msg);
-  }
-
-  // Publish images
-  m_imagePub->publish(result.color_img);
-  m_imageRawPub->publish(result.color_img_raw);
-  m_maskPub->publish(result.mask);
-
-  // Publish transform if pose is valid
-  if (result.centroid_pose.header.frame_id != "")
-  {
-    publishTransform(result.centroid_pose);
-    RCLCPP_INFO(this->get_logger(), "Object found at %.3f, %.3f, %.3f", result.centroid_pose.pose.position.x,
-                result.centroid_pose.pose.position.y, result.centroid_pose.pose.position.z);
-  }
-  else
-  {
-    RCLCPP_ERROR(this->get_logger(), "FAILED to find object in image frame");
-  }
+  const auto result = processBlobsAndPublish(blob_request);
 
   response->centroid_pose = result.centroid_pose;
   response->color_img = result.color_img;
@@ -317,24 +302,19 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
   m_depthImage = *depthImMsgA;
   m_imageInfo = *infoMsgA;
 
-  // if (m_continuousColor)
-  // {
-  //   cv::Mat colorImageCopy = m_colorImage.clone();
-  //   const auto result =
-  //       color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, m_currentRequest.color,
-  //                                         m_currentRequest.min_blob_size, m_currentRequest.desired_blob);
+  if (m_continuousColor)
+  {
+    color_blob_centroid::BlobRequest blob_request;
+    blob_request.color_img = m_colorImage;
+    blob_request.depth_img = m_depthImage;
+    blob_request.camera_info = m_imageInfo;
+    blob_request.blob_color = m_currentRequest.blob_color;
+    blob_request.min_blob_size = m_currentRequest.min_blob_size;
+    blob_request.desired_blob = m_currentRequest.desired_blob;
 
-  //   if (result.centroid_pose.header.frame_id != "")
-  //   {
-  //     publishTransform(result.centroid_pose);
-  //   }
-
-  //   if (m_showImage && !m_mockHardware)
-  //   {
-  //     cv::imshow("img", colorImageCopy);
-  //     cv::waitKey(1);  // set to 1 for continuous output, set to 0 for single frame forever
-  //   }
-  // }
+    // Process using standalone function
+    processBlobsAndPublish(blob_request);
+  }
 }
 
 int main(int argc, char* argv[])

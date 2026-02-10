@@ -58,6 +58,8 @@ public:
 private:
   void initialize();
 
+  color_blob_centroid::BlobResult processBlobsAndPublish(const color_blob_centroid::BlobRequest& blob_request);
+
   /* Helpers */
   geometry_msgs::msg::PoseStamped sendMockHardwareTransform();
   void publishTransform(const geometry_msgs::msg::PoseStamped& pose);
