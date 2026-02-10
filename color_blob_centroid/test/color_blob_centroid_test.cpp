@@ -39,7 +39,8 @@ TEST(ProcessBlobsTest, DetectsRedBlob)
   const float min_blob_size = 10.0;
   const uint8_t desired_blob = 0;
 
-  const auto result = color_blob_centroid::processBlobs(colorImage, depthImage, cameraInfo, "red", min_blob_size, desired_blob);
+  const auto result =
+      color_blob_centroid::processBlobs(colorImage, depthImage, cameraInfo, "red", min_blob_size, desired_blob);
 
   // Verify blob was found
   EXPECT_TRUE(result.success);

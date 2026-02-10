@@ -40,7 +40,7 @@ struct BlobResult
   /// @brief The pose of the requested blob centroid
   geometry_msgs::msg::PoseStamped centroid_pose;
 
-  /// @brief Annoted color image complete with mask information
+  /// @brief Annotated color image complete with mask information
   sensor_msgs::msg::Image color_img;
 
   /// @brief Mask of the detected color blobs
@@ -65,10 +65,8 @@ struct BlobResult
  * @param desired_blob Index of the requested blob in the detections list
  * @return BlobResult containing pose and images
  */
-BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage,
-                                             const sensor_msgs::msg::CameraInfo& cameraInfo,
-                                             const std::string blob_color = std::string("red"),
-                                             const double min_blob_size = 10.0,
-                                             const uint8_t desired_blob = 0);
+BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage, const sensor_msgs::msg::CameraInfo& cameraInfo,
+                        const std::string blob_color = std::string("red"), const double min_blob_size = 10.0,
+                        const uint8_t desired_blob = 0);
 
 }  // namespace color_blob_centroid

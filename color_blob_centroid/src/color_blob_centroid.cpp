@@ -64,11 +64,8 @@ sensor_msgs::msg::Image matToImage(const cv::Mat& mat, const std_msgs::msg::Head
 
 }  // anonymous namespace
 
-BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage,
-                                               const sensor_msgs::msg::CameraInfo& cameraInfo,
-                                               const std::string blob_color,
-                                               const double min_blob_size,
-                                               const uint8_t desired_blob)
+BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage, const sensor_msgs::msg::CameraInfo& cameraInfo,
+                        const std::string blob_color, const double min_blob_size, const uint8_t desired_blob)
 {
   BlobResult result;
   if (colorImage.empty())

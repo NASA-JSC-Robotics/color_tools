@@ -167,7 +167,8 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::
                                         std::shared_ptr<color_tools_msgs::srv::BlobCentroid::Response> response)
 {
   // handle mock hardware
-  if (m_mockHardware) {
+  if (m_mockHardware)
+  {
     geometry_msgs::msg::PoseStamped blobPos;
     sendMockHardwareTransform(blobPos);
     response->centroid_pose = blobPos;
@@ -185,8 +186,8 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::
 
   // Process using standalone function
   cv::Mat colorImageCopy = m_colorImage.clone();
-  const auto result = color_blob_centroid::processBlobs(
-    colorImageCopy, m_depthImage, m_imageInfo, request->color, request->min_blob_size, request->desired_blob);
+  const auto result = color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, request->color,
+                                                        request->min_blob_size, request->desired_blob);
 
   // Publish images
   m_imagePub->publish(result.color_img);
@@ -222,7 +223,8 @@ void ColorBlobCentroid::color_set_blob_dimensions(
               request->aspect_ratio, request->aspect_ratio_threshold, request->size, request->size_threshold,
               request->color.c_str(), request->prefix.c_str());
   // handle mock hardware
-  if (m_mockHardware) {
+  if (m_mockHardware)
+  {
     geometry_msgs::msg::PoseStamped blobPos;
     sendMockHardwareTransform(blobPos);
     response->centroid_pose = blobPos;
@@ -312,7 +314,8 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
   {
     cv::Mat colorImageCopy = m_colorImage.clone();
     const auto result =
-      color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, m_currentRequest.color, m_currentRequest.min_blob_size, m_currentRequest.desired_blob);
+        color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, m_currentRequest.color,
+                                          m_currentRequest.min_blob_size, m_currentRequest.desired_blob);
 
     if (result.centroid_pose.header.frame_id != "")
     {
