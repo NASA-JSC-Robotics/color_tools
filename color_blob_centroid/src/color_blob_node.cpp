@@ -92,7 +92,7 @@ void ColorBlobCentroid::initialize()
 
   // timeout for stale messages
   this->declare_parameter("stale_message_timeout", 5.0);
-  m_staleMessageTimeout = this->get_parameter("show_image").as_double();
+  m_staleMessageTimeout = this->get_parameter("stale_message_timeout").as_double();
   RCLCPP_INFO(this->get_logger(), "Stale message timeout set to %f", m_staleMessageTimeout);
 
   // verbose debug mode that shows underlying color
