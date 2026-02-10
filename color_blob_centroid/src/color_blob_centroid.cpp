@@ -18,9 +18,8 @@
  */
 
 #include "color_blob_centroid/color_blob_centroid.hpp"
-#include "sensor_msgs/image_encodings.hpp"
 
-// Support humble and jazzy+
+// Support humble and jazzy
 #if __has_include(<cv_bridge/cv_bridge.hpp>)
 #include <cv_bridge/cv_bridge.hpp>
 #else
@@ -53,34 +52,45 @@ bool checkValidContour(const cv::RotatedRect& rotRect, double minBlobSize)
   return (height > minBlobSize && width > minBlobSize);
 }
 
-// Convert cv::Mat to sensor_msgs::Image
-sensor_msgs::msg::Image matToImage(const cv::Mat& mat, const std_msgs::msg::Header& header, const std::string& encoding)
-{
-  cv_bridge::CvImage img_bridge(header, encoding, mat);
-  sensor_msgs::msg::Image output;
-  img_bridge.toImageMsg(output);
-  return output;
-}
-
 }  // anonymous namespace
 
-BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage, const sensor_msgs::msg::CameraInfo& cameraInfo,
-                        const std::string blob_color, const double min_blob_size, const uint8_t desired_blob)
+BlobResult processBlobs(const BlobRequest& request)
 {
   BlobResult result;
-  if (colorImage.empty())
+
+  const auto colorImageRaw = cv::Mat(cv_bridge::toCvCopy(request.color_img, "bgr8")->image);
+  const auto depthImage = cv::Mat(cv_bridge::toCvCopy(request.depth_img)->image);
+  const auto cameraInfo = request.camera_info;
+
+  if (colorImageRaw.empty())
   {
     result.success = false;
+    result.err_msg = "No data found in the color image";
     return result;
   }
 
-  // Store raw image before annotation
-  cv::Mat colorImageRaw = colorImage.clone();
+  // Normalize depth image
+  if (depthImage.type() != CV_32FC1)
+  {
+    if (depthImage.type() == CV_16UC1)
+    {
+      depthImage.convertTo(depthImage, CV_32FC1, 0.001);
+    }
+    else
+    {
+      result.success = false;
+      result.err_msg = "Depth image type must be CV_32FC1 or CV_16UC1";
+      return result;
+    }
+  }
+
+  // Create manipulable image
+  auto colorImage = colorImageRaw.clone();
 
   // Create color mask
   cv::Mat mask;
   ColorNames colorNames;
-  colorNames.createColorMask(colorImage, blob_color, mask);
+  colorNames.createColorMask(colorImage, request.blob_color, mask);
 
   // Morphological operations
   float dilation_size = 1.0;
@@ -107,12 +117,12 @@ BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage, const se
   {
     cv::RotatedRect rotRect = cv::minAreaRect(contours[i]);
 
-    if (!checkValidContour(rotRect, min_blob_size))
+    if (!checkValidContour(rotRect, request.min_blob_size))
     {
       continue;
     }
 
-    bool isDesired = (desired_blob == blobNum);
+    bool isDesired = (request.desired_blob == blobNum);
     cv::Scalar color = isDesired ? cv::Scalar(70, 255, 70) : cv::Scalar(255, 255, 255);
 
     // Draw contour
@@ -186,10 +196,11 @@ BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage, const se
   }
 
   // Convert images to messages
-  result.color_img = matToImage(colorImage, cameraInfo.header, sensor_msgs::image_encodings::BGR8);
-  result.color_img_raw = matToImage(colorImageRaw, cameraInfo.header, sensor_msgs::image_encodings::BGR8);
-  result.mask = matToImage(mask, cameraInfo.header, sensor_msgs::image_encodings::MONO8);
-  result.depth_img = matToImage(depthImage, cameraInfo.header, sensor_msgs::image_encodings::TYPE_32FC1);
+  cv_bridge::CvImage(cameraInfo.header, sensor_msgs::image_encodings::BGR8, colorImage).toImageMsg(result.color_img);
+  cv_bridge::CvImage(cameraInfo.header, sensor_msgs::image_encodings::MONO8, colorImage).toImageMsg(result.mask);
+  cv_bridge::CvImage(cameraInfo.header, sensor_msgs::image_encodings::TYPE_32FC1, colorImage)
+      .toImageMsg(result.depth_img);
+  result.color_img_raw = request.color_img;
 
   return result;
 }

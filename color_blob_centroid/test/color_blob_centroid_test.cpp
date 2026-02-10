@@ -17,30 +17,38 @@
  * under the License.
  */
 
-#include "color_blob_centroid/color_blob_centroid.hpp"
+#include <color_blob_centroid/color_blob_centroid.hpp>
+
 #include <gtest/gtest.h>
 #include <opencv2/opencv.hpp>
+
+// Support humble and jazzy
+#if __has_include(<cv_bridge/cv_bridge.hpp>)
+#include <cv_bridge/cv_bridge.hpp>
+#else
+#include <cv_bridge/cv_bridge.h>
+#endif
 
 TEST(ProcessBlobsTest, DetectsRedBlob)
 {
   // Configure a dummy test camera
-  sensor_msgs::msg::CameraInfo cameraInfo;
-  cameraInfo.header.frame_id = "test_camera";
-  cameraInfo.k = { 500.0, 0.0, 320.0, 0.0, 500.0, 240.0, 0.0, 0.0, 1.0 };
+  sensor_msgs::msg::CameraInfo camera_info;
+  camera_info.header.frame_id = "test_camera";
+  camera_info.k = { 500.0, 0.0, 320.0, 0.0, 500.0, 240.0, 0.0, 0.0, 1.0 };
 
   // Generate a black image with a 50 pixel red circle in the middle.
   // Depth image universally 0.5 m away.
-  cv::Mat colorImage(480, 640, CV_8UC3, cv::Scalar(0, 0, 0));
-  cv::circle(colorImage, cv::Point(320, 240), 50, cv::Scalar(0, 0, 255), -1);
-  cv::Mat depthImage(480, 640, CV_32FC1, cv::Scalar(0.5));
+  cv::Mat color_image(480, 640, CV_8UC3, cv::Scalar(0, 0, 0));
+  cv::circle(color_image, cv::Point(320, 240), 50, cv::Scalar(0, 0, 255), -1);
+  cv::Mat depth_image(480, 640, CV_32FC1, cv::Scalar(0.5));
 
-  // Send and process request for a red blob
-  const std::string color = "red";
-  const float min_blob_size = 10.0;
-  const uint8_t desired_blob = 0;
+  color_blob_centroid::BlobRequest request;
+  cv_bridge::CvImage(camera_info.header, sensor_msgs::image_encodings::BGR8, color_image).toImageMsg(request.color_img);
+  cv_bridge::CvImage(camera_info.header, sensor_msgs::image_encodings::TYPE_32FC1, depth_image)
+      .toImageMsg(request.depth_img);
+  request.camera_info = camera_info;
 
-  const auto result =
-      color_blob_centroid::processBlobs(colorImage, depthImage, cameraInfo, "red", min_blob_size, desired_blob);
+  const auto result = color_blob_centroid::processBlobs(request);
 
   // Verify blob was found
   EXPECT_TRUE(result.success);

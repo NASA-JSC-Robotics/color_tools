@@ -18,7 +18,6 @@
  */
 
 #include "color_blob_centroid/color_blob_node.hpp"
-#include "color_blob_centroid/color_blob_centroid.hpp"
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -103,7 +102,7 @@ void ColorBlobCentroid::initialize()
 
   RCLCPP_INFO(this->get_logger(), "Initial settings:");
   RCLCPP_INFO(this->get_logger(), "Image topic prefix: %s", m_prefix.c_str());
-  RCLCPP_INFO(this->get_logger(), "Color blob: %s", m_currentRequest.color.c_str());
+  RCLCPP_INFO(this->get_logger(), "Color blob: %s", m_currentRequest.blob_color.c_str());
   RCLCPP_INFO(this->get_logger(), "Color image topic: %s", ("/" + m_prefix + "/" + m_color_topic).c_str());
   RCLCPP_INFO(this->get_logger(), "Depth image topic: %s", ("/" + m_prefix + "/" + m_depth_topic).c_str());
   RCLCPP_INFO(this->get_logger(), "Camera info topic: %s", ("/" + m_prefix + "/" + m_info_topic).c_str());
@@ -180,12 +179,6 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::
     return;
   }
 
-  if (m_colorImage.empty())
-  {
-    RCLCPP_ERROR(this->get_logger(), "ERROR - No image. Check that image topics exist and data is flowing.");
-    return;
-  }
-
   // Check for a timeout
   rclcpp::Time image_time(m_imageInfo.header.stamp);
   rclcpp::Time current_time = this->now();
@@ -199,10 +192,22 @@ void ColorBlobCentroid::color_blob_find(const std::shared_ptr<color_tools_msgs::
   RCLCPP_INFO(this->get_logger(), "Incoming Request - Min Blob Size: %.1f, Color: %s, Image prefix: %s",
               request->min_blob_size, request->color.c_str(), m_prefix.c_str());
 
+  // Setup the request
+  color_blob_centroid::BlobRequest blob_request;
+  blob_request.color_img = m_colorImage;
+  blob_request.depth_img = m_depthImage;
+  blob_request.camera_info = m_imageInfo;
+  blob_request.blob_color = request->color;
+  blob_request.min_blob_size = request->min_blob_size;
+  blob_request.desired_blob = request->desired_blob;
+
   // Process using standalone function
-  cv::Mat colorImageCopy = m_colorImage.clone();
-  const auto result = color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, request->color,
-                                                        request->min_blob_size, request->desired_blob);
+  const auto result = color_blob_centroid::processBlobs(blob_request);
+
+  if (!result.success)
+  {
+    RCLCPP_ERROR_STREAM(this->get_logger(), "FAILED to process blobs: " << result.err_msg);
+  }
 
   // Publish images
   m_imagePub->publish(result.color_img);
@@ -245,12 +250,6 @@ void ColorBlobCentroid::color_set_blob_dimensions(
     return;
   }
 
-  if (m_colorImage.empty())
-  {
-    RCLCPP_ERROR(this->get_logger(), "ERROR - No image. Check that image topics exist and data is flowing.");
-    return;
-  }
-
   // Update prefix if changed
   if (!request->prefix.empty() && request->prefix != m_prefix)
   {
@@ -260,15 +259,22 @@ void ColorBlobCentroid::color_set_blob_dimensions(
     m_colorInfoSub.subscribe(this, "/" + m_prefix + "/" + m_info_topic, m_imageQos.get_rmw_qos_profile());
   }
 
-  // Build request message
-  const uint8_t desired_blob = request->desired_blob;
-  const double min_blob_size = request->size > 0 ? request->size - request->size_threshold : 10.0;
-  const std::string color = request->color.empty() ? "red" : request->color;
+  // Setup the request
+  color_blob_centroid::BlobRequest blob_request;
+  blob_request.color_img = m_colorImage;
+  blob_request.depth_img = m_depthImage;
+  blob_request.camera_info = m_imageInfo;
+  blob_request.blob_color = request->color.empty() ? "red" : request->color;
+  blob_request.min_blob_size = request->size > 0 ? request->size - request->size_threshold : 10.0;
+  blob_request.desired_blob = request->desired_blob;
 
   // Process using standalone function
-  cv::Mat colorImageCopy = m_colorImage.clone();
-  const auto result =
-      color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, color, min_blob_size, desired_blob);
+  const auto result = color_blob_centroid::processBlobs(blob_request);
+
+  if (!result.success)
+  {
+    RCLCPP_ERROR_STREAM(this->get_logger(), "FAILED to process blobs: " << result.err_msg);
+  }
 
   // Publish images
   m_imagePub->publish(result.color_img);
@@ -307,41 +313,28 @@ void ColorBlobCentroid::imageCallback(const sensor_msgs::msg::Image::ConstShared
                                       const sensor_msgs::msg::Image::ConstSharedPtr& depthImMsgA,
                                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA)
 {
-  m_colorImage = cv::Mat(cv_bridge::toCvCopy(colorImMsgA, "bgr8")->image);
-  m_depthImage = cv::Mat(cv_bridge::toCvCopy(depthImMsgA)->image);
+  m_colorImage = *colorImMsgA;
+  m_depthImage = *depthImMsgA;
   m_imageInfo = *infoMsgA;
 
-  // Normalize depth image
-  if (m_depthImage.type() != CV_32FC1)
-  {
-    if (m_depthImage.type() == CV_16UC1)
-    {
-      m_depthImage.convertTo(m_depthImage, CV_32FC1, 0.001);
-    }
-    else
-    {
-      RCLCPP_WARN(this->get_logger(), "Depth image type must be CV_32FC1 or CV_16UC1");
-    }
-  }
+  // if (m_continuousColor)
+  // {
+  //   cv::Mat colorImageCopy = m_colorImage.clone();
+  //   const auto result =
+  //       color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, m_currentRequest.color,
+  //                                         m_currentRequest.min_blob_size, m_currentRequest.desired_blob);
 
-  if (m_continuousColor)
-  {
-    cv::Mat colorImageCopy = m_colorImage.clone();
-    const auto result =
-        color_blob_centroid::processBlobs(colorImageCopy, m_depthImage, m_imageInfo, m_currentRequest.color,
-                                          m_currentRequest.min_blob_size, m_currentRequest.desired_blob);
+  //   if (result.centroid_pose.header.frame_id != "")
+  //   {
+  //     publishTransform(result.centroid_pose);
+  //   }
 
-    if (result.centroid_pose.header.frame_id != "")
-    {
-      publishTransform(result.centroid_pose);
-    }
-
-    if (m_showImage && !m_mockHardware)
-    {
-      cv::imshow("img", colorImageCopy);
-      cv::waitKey(1);  // set to 1 for continuous output, set to 0 for single frame forever
-    }
-  }
+  //   if (m_showImage && !m_mockHardware)
+  //   {
+  //     cv::imshow("img", colorImageCopy);
+  //     cv::waitKey(1);  // set to 1 for continuous output, set to 0 for single frame forever
+  //   }
+  // }
 }
 
 int main(int argc, char* argv[])

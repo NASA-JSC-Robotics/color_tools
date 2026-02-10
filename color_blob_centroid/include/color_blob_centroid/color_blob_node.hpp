@@ -31,19 +31,18 @@
 #include "std_srvs/srv/set_bool.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 
-#include <color_names/ColorNames.h>
-#include "color_tools_msgs/msg/blob_request.hpp"
-#include "color_tools_msgs/msg/blob_result.hpp"
-#include "color_tools_msgs/srv/blob_centroid.hpp"
-#include "color_tools_msgs/srv/blob_dimensions.hpp"
-
 #include <geometry_msgs/msg/pose_stamped.h>
 #include <geometry_msgs/msg/quaternion.h>
 #include <geometry_msgs/msg/transform_stamped.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-// Support humble and jazzy+
+#include <color_names/ColorNames.h>
+#include "color_blob_centroid/color_blob_centroid.hpp"
+#include "color_tools_msgs/srv/blob_centroid.hpp"
+#include "color_tools_msgs/srv/blob_dimensions.hpp"
+
+// Support humble and jazzy
 #if __has_include(<cv_bridge/cv_bridge.hpp>)
 #include <cv_bridge/cv_bridge.hpp>
 #else
@@ -77,7 +76,7 @@ private:
                      const sensor_msgs::msg::CameraInfo::ConstSharedPtr& infoMsgA);
 
   // Current request parameters (updated by services)
-  color_tools_msgs::msg::BlobRequest m_currentRequest;
+  color_blob_centroid::BlobRequest m_currentRequest;
 
   // Extended parameters for BlobDimensions service
   double m_blobSize;
@@ -109,8 +108,8 @@ private:
       m_timeSyncPtr;
 
   // Image data
-  cv::Mat m_colorImage;
-  cv::Mat m_depthImage;
+  sensor_msgs::msg::Image m_colorImage;
+  sensor_msgs::msg::Image m_depthImage;
   sensor_msgs::msg::CameraInfo m_imageInfo;
 
   // Flags

@@ -23,6 +23,7 @@
   <depend>image_geometry</depend>
   <depend>color_tools_msgs</depend>
   <depend>rosidl_generator_cpp</depend>
+  <depend>nanobind-dev</depend>
 
   <exec_depend>ros2launch</exec_depend>
   <export>

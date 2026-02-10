@@ -20,6 +20,7 @@
 #pragma once
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <sensor_msgs/image_encodings.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 
@@ -30,12 +31,39 @@ namespace color_blob_centroid
 {
 
 /**
- * @brief Container for the results of a blob process result.
+ * @brief Container for a blob process request.
+ */
+struct BlobRequest
+{
+  /// @brief The color image to search
+  sensor_msgs::msg::Image color_img;
+
+  /// @brief The depth image to search
+  sensor_msgs::msg::Image depth_img;
+
+  /// @brief Synced camera info for the depth/color images
+  sensor_msgs::msg::CameraInfo camera_info;
+
+  /// @brief Target blob color, defaults to "red"
+  std::string blob_color = std::string("red");
+
+  /// @brief Minimum pixels of the blob, defaults to 10.0
+  double min_blob_size = 10.0;
+
+  /// @brief Index of the requested blob in the detections list
+  uint8_t desired_blob = 0;
+};
+
+/**
+ * @brief Container for a blob process result.
  */
 struct BlobResult
 {
   /// @brief Whether or not processing was successful
   bool success;
+
+  /// @brief Optional message in the event of failure
+  std::string err_msg;
 
   /// @brief The pose of the requested blob centroid
   geometry_msgs::msg::PoseStamped centroid_pose;
@@ -56,17 +84,9 @@ struct BlobResult
 /**
  * @brief Process color and depth images to find colored blobs
  *
- * @param colorImage BGR color image (will be annotated in place)
- * @param depthImage Depth image
- * @param cameraInfo Camera intrinsic parameters
- * @param request Blob detection parameters
- * @param blob_color Target blob color, defaults to "red"
- * @param min_blob_size Minimum pixels of the blob, defaults to 10.0
- * @param desired_blob Index of the requested blob in the detections list
+ * @param request BlobRequest with required information
  * @return BlobResult containing pose and images
  */
-BlobResult processBlobs(cv::Mat& colorImage, const cv::Mat& depthImage, const sensor_msgs::msg::CameraInfo& cameraInfo,
-                        const std::string blob_color = std::string("red"), const double min_blob_size = 10.0,
-                        const uint8_t desired_blob = 0);
+BlobResult processBlobs(const BlobRequest& request);
 
 }  // namespace color_blob_centroid
