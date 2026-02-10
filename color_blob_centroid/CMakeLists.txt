@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.15)
 project(color_blob_centroid)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -111,13 +111,12 @@ if(BUILD_BINDINGS)
   find_package(builtin_interfaces REQUIRED)
   find_package(rosidl_generator_cpp REQUIRED)
 
-  include(FetchContent)
-  FetchContent_Declare(
-    nanobind
-    GIT_REPOSITORY https://github.com/wjakob/nanobind.git
-    GIT_TAG v2.11.0
-  )
-  FetchContent_MakeAvailable(nanobind)
+  # Detect the installed nanobind package and import it into CMake
+  execute_process(
+    COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+  message(WARNING "ERH TEMP: nanobind dir: ${nanobind_ROOT}")
+  find_package(nanobind CONFIG REQUIRED)
 
   nanobind_add_module(
     bindings
