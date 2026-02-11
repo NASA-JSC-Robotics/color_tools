@@ -24,8 +24,9 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 
 include_directories(include)
 
-add_library(${PROJECT_NAME} src/ColorNames.cpp
-                            src/ColorNameLut.cpp
+add_library(${PROJECT_NAME} SHARED
+  src/ColorNames.cpp
+  src/ColorNameLut.cpp
 )
 
 add_executable(version test/version.cpp)

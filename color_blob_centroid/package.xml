@@ -22,6 +22,9 @@
   <depend>tf2_geometry_msgs</depend>
   <depend>image_geometry</depend>
   <depend>color_tools_msgs</depend>
+  <depend>rosidl_generator_cpp</depend>
+  <depend>nanobind-dev</depend>
+
   <exec_depend>ros2launch</exec_depend>
   <export>
     <build_type>ament_cmake</build_type>
