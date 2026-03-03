@@ -59,7 +59,7 @@ BlobResult processBlobs(const BlobRequest& request)
   BlobResult result;
 
   const auto colorImageRaw = cv::Mat(cv_bridge::toCvCopy(request.color_img, "bgr8")->image);
-  const auto depthImage = cv::Mat(cv_bridge::toCvCopy(request.depth_img)->image);
+  auto depthImageRaw = cv::Mat(cv_bridge::toCvCopy(request.depth_img)->image);
   const auto cameraInfo = request.camera_info;
 
   if (colorImageRaw.empty())
@@ -70,11 +70,11 @@ BlobResult processBlobs(const BlobRequest& request)
   }
 
   // Normalize depth image
-  if (depthImage.type() != CV_32FC1)
+  if (depthImageRaw.type() != CV_32FC1)
   {
-    if (depthImage.type() == CV_16UC1)
+    if (depthImageRaw.type() == CV_16UC1)
     {
-      depthImage.convertTo(depthImage, CV_32FC1, 0.001);
+      depthImageRaw.convertTo(depthImageRaw, CV_32FC1, 0.001);
     }
     else
     {
@@ -83,6 +83,8 @@ BlobResult processBlobs(const BlobRequest& request)
       return result;
     }
   }
+
+  const auto depthImage = depthImageRaw;
 
   // Create manipulable image
   auto colorImage = colorImageRaw.clone();
