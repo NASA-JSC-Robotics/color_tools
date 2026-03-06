@@ -5,7 +5,7 @@
   <version>1.0.0</version>
   <description>Find centroid of a colorblob and use depth to output a transform relative to camera in the world</description>
   <maintainer email="connor.m.rainen@nasa.gov">crainen</maintainer>
-  <license>Apache License, Version 2.0</license>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
@@ -23,7 +23,9 @@
   <depend>image_geometry</depend>
   <depend>color_tools_msgs</depend>
   <depend>rosidl_generator_cpp</depend>
-  <depend>nanobind-dev</depend>
+  <!-- We should not use this until the following is resolved, https://github.com/ros/rosdistro/pull/49894 -->
+  <!-- Or make a note that pip installs of nanobind are required. -->
+  <!-- <depend>nanobind-dev</depend> -->
 
   <exec_depend>ros2launch</exec_depend>
   <export>
