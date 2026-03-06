@@ -5,7 +5,7 @@
   <version>1.0.0</version>
   <description>Fast color identification for images</description>
   <maintainer email="jodi.s.graf@nasa.gov">jsgraf</maintainer>
-  <license>Apache License, Version 2.0</license>
+  <license>Apache-2.0</license>
 
   <buildtool_depend condition="$ROS_VERSION == 1">catkin</buildtool_depend>
   <buildtool_depend condition="$ROS_VERSION == 2">ament_cmake</buildtool_depend>
