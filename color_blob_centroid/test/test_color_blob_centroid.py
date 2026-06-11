@@ -59,9 +59,9 @@ def test_detects_red_blob():
     centroid_pose = result.get_centroid_pose()
     print(f"{centroid_pose=}")
     assert centroid_pose.header.frame_id != "", "Frame ID should not be empty"
-    assert abs(centroid_pose.pose.position.z - 0.5) < 0.01, (
-        f"Expected z position ~0.5, got {centroid_pose.pose.position.z}"
-    )
+    assert (
+        abs(centroid_pose.pose.position.z - 0.5) < 0.01
+    ), f"Expected z position ~0.5, got {centroid_pose.pose.position.z}"
 
 
 if __name__ == "__main__":
