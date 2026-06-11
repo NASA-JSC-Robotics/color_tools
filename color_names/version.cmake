@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.16)
 
 execute_process(
   COMMAND git rev-parse --abbrev-ref HEAD
