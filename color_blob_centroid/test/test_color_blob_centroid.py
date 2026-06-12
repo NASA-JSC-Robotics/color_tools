@@ -17,11 +17,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import numpy as np
 import cv2
-from sensor_msgs.msg import CameraInfo
-from cv_bridge import CvBridge
+import numpy as np
 from color_blob_centroid import bindings
+from cv_bridge import CvBridge
+from sensor_msgs.msg import CameraInfo
 
 
 def test_detects_red_blob():
@@ -57,11 +57,11 @@ def test_detects_red_blob():
     # Verify blob was found
     assert result.success, f"Processing failed: {result.err_msg}"
     centroid_pose = result.get_centroid_pose()
-    print(centroid_pose)
+    print(f"{centroid_pose=}")
     assert centroid_pose.header.frame_id != "", "Frame ID should not be empty"
     assert (
         abs(centroid_pose.pose.position.z - 0.5) < 0.01
-    ), f"Expected z position ~0.5, got {result.centroid_pose.pose.position.z}"
+    ), f"Expected z position ~0.5, got {centroid_pose.pose.position.z}"
 
 
 if __name__ == "__main__":

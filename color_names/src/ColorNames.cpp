@@ -118,7 +118,8 @@ void ColorNames::createColorMask(cv::Mat& imageA, std::string colorNameA, cv::Ma
     {
       for (int32_t c = 0; c < image.cols; ++c)
       {
-        int32_t colorIdx = m_simpleLut.at<uint8_t>(image.at<uint16_t>(r, c));
+        uint16_t pixel = image.ptr<uint16_t>(r)[c];
+        int32_t colorIdx = m_simpleLut.at<uint8_t>(pixel);
         if (colorIdx == maskColorIdx)
         {
           maskA.at<uint8_t>(r, c) = 255;
