@@ -28,7 +28,7 @@ const cv::Vec3b ColorNames::colors[] = { cv::Vec3b(0, 0, 0),       cv::Vec3b(255
                                          cv::Vec3b(80, 75, 100),   cv::Vec3b(255, 0, 127), cv::Vec3b(0, 0, 255),
                                          cv::Vec3b(255, 255, 255), cv::Vec3b(0, 255, 255) };
 
-ColorNames::ColorNames(std::string encodingA)
+ColorNames::ColorNames(const std::string& encodingA)
 {
   m_kernel = cv::getStructuringElement(0, cv::Size(2 * 2 + 1, 2 * 2 + 1), cv::Point(2, 2));
   if (encodingA == "rgb8")
@@ -50,7 +50,7 @@ ColorNames::~ColorNames()
 {
 }
 
-bool ColorNames::isValidColorName(std::string nameA)
+bool ColorNames::isValidColorName(const std::string& nameA)
 {
   bool valid = true;
   int32_t idx = getColorIndex(nameA);
@@ -61,7 +61,7 @@ bool ColorNames::isValidColorName(std::string nameA)
   return (valid);
 }
 
-int32_t ColorNames::getColorIndex(std::string nameA)
+int32_t ColorNames::getColorIndex(const std::string& nameA)
 {
   int32_t idx = -1;
   std::string name = nameA;
@@ -98,7 +98,7 @@ int32_t ColorNames::getColorFromIndex(uint16_t idxA)
   return (maxLoc.x);
 }
 
-void ColorNames::createColorMask(cv::Mat& imageA, std::string colorNameA, cv::Mat& maskA)
+void ColorNames::createColorMask(const cv::Mat& imageA, const std::string& colorNameA, cv::Mat& maskA)
 {
   static cv::Mat image;
   maskA.create(imageA.size(), CV_8UC1);
@@ -130,7 +130,7 @@ void ColorNames::createColorMask(cv::Mat& imageA, std::string colorNameA, cv::Ma
   }
 }
 
-void ColorNames::colorImage(cv::Mat& imageInA, cv::Mat& imageOutA)
+void ColorNames::colorImage(const cv::Mat& imageInA, cv::Mat& imageOutA)
 {
   static cv::Mat image;
   cv::cvtColor(imageInA, image, cv::COLOR_BGR2BGR555);
