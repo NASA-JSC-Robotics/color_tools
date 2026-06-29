@@ -199,8 +199,8 @@ BlobResult processBlobs(const BlobRequest& request)
 
   // Convert images to messages
   cv_bridge::CvImage(cameraInfo.header, sensor_msgs::image_encodings::BGR8, colorImage).toImageMsg(result.color_img);
-  cv_bridge::CvImage(cameraInfo.header, sensor_msgs::image_encodings::MONO8, colorImage).toImageMsg(result.mask);
-  cv_bridge::CvImage(cameraInfo.header, sensor_msgs::image_encodings::TYPE_32FC1, colorImage)
+  cv_bridge::CvImage(cameraInfo.header, sensor_msgs::image_encodings::MONO8, mask).toImageMsg(result.mask);
+  cv_bridge::CvImage(cameraInfo.header, sensor_msgs::image_encodings::TYPE_32FC1, depthImage)
       .toImageMsg(result.depth_img);
   result.color_img_raw = request.color_img;
 
