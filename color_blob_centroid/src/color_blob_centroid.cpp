@@ -158,11 +158,16 @@ BlobResult processBlobs(const BlobRequest& request)
     // Process desired blob
     if (isDesired)
     {
-      result.success = true;
       double depth = depthImage.at<float>(momentPt);
-
-      if (depth != 0.0)
+      if (depth <= 0.0)
       {
+        result.success = false;
+        result.err_msg = "Depth at blob centroid is zero";
+      }
+      else
+      {
+        result.success = true;
+
         // Compute world coordinates
         double worldX = (momentPt.x - cameraInfo.k.at(2)) * (depth / cameraInfo.k.at(0));
         double worldY = (momentPt.y - cameraInfo.k.at(5)) * (depth / cameraInfo.k.at(4));
