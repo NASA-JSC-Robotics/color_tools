@@ -60,10 +60,10 @@ struct BlobRequest
 struct BlobResult
 {
   /// @brief Whether or not processing was successful
-  bool success;
+  bool success = false;
 
   /// @brief Optional message in the event of failure
-  std::string err_msg;
+  std::string err_msg = "";
 
   /// @brief The pose of the requested blob centroid
   geometry_msgs::msg::PoseStamped centroid_pose;

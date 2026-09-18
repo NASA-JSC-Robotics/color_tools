@@ -58,6 +58,29 @@ TEST(ProcessBlobsTest, DetectsRedBlob)
   EXPECT_NEAR(result.centroid_pose.pose.position.y, 0.0, 0.01);
 }
 
+TEST(ProcessBlobsTest, FailOnZeroDepth)
+{
+  sensor_msgs::msg::CameraInfo camera_info;
+  camera_info.header.frame_id = "test_camera";
+  camera_info.k = { 500.0, 0.0, 320.0, 0.0, 500.0, 240.0, 0.0, 0.0, 1.0 };
+
+  // Red circle in the middle, but depth is zero everywhere
+  cv::Mat color_image(480, 640, CV_8UC3, cv::Scalar(0, 0, 0));
+  cv::circle(color_image, cv::Point(320, 240), 50, cv::Scalar(0, 0, 255), -1);
+  cv::Mat depth_image(480, 640, CV_32FC1, cv::Scalar(0.0));
+
+  color_blob_centroid::BlobRequest request;
+  cv_bridge::CvImage(camera_info.header, sensor_msgs::image_encodings::BGR8, color_image).toImageMsg(request.color_img);
+  cv_bridge::CvImage(camera_info.header, sensor_msgs::image_encodings::TYPE_32FC1, depth_image)
+      .toImageMsg(request.depth_img);
+  request.camera_info = camera_info;
+
+  const auto result = color_blob_centroid::processBlobs(request);
+
+  //  If depth is zero this should fail
+  EXPECT_FALSE(result.success);
+}
+
 int main(int argc, char** argv)
 {
   testing::InitGoogleTest(&argc, argv);
