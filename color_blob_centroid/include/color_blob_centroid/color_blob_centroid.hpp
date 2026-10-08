@@ -27,6 +27,12 @@
 #include <color_names/ColorNames.h>
 #include <opencv2/opencv.hpp>
 
+// In OpenCV 5, boundingRect/minAreaRect/moments moved out of imgproc into a
+// separate "geometry" module that opencv.hpp does not pull in automatically.
+#if __has_include(<opencv2/geometry.hpp>)
+#include <opencv2/geometry.hpp>
+#endif
+
 namespace color_blob_centroid
 {
 
